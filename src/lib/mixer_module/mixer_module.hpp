@@ -59,7 +59,7 @@
 class OutputModuleInterface : public px4::ScheduledWorkItem, public ModuleParams
 {
 public:
-	static constexpr int MAX_ACTUATORS = PWM_OUTPUT_MAX_CHANNELS;
+        static constexpr int MAX_ACTUATORS = PWM_OUTPUT_MAX_CHANNELS;
 
 	OutputModuleInterface(const char *name, const px4::wq_config_t &config)
 		: px4::ScheduledWorkItem(name, config), ModuleParams(nullptr) {}

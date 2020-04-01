@@ -84,6 +84,8 @@ px4_add_board(
 		uuv_att_control
 		vmount
 		vtol_att_control
+		module
+		servo_control
 	SYSTEMCMDS
 		bl_update
 		config
@@ -122,4 +124,5 @@ px4_add_board(
 		px4_simple_app # Tutorial code from http://dev.px4.io/en/apps/hello_sky.html
 		rover_steering_control # Rover example app
 		uuv_example_app
+		pitch_subscription_pin5_publication # Francesco Malacarne
 	)
