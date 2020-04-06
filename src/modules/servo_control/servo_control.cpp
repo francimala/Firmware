@@ -143,24 +143,30 @@ ServoControl::ServoControl(int example_param, bool example_flag)
 
 void ServoControl::run()
 {
-        EulerToQuaternion etq;
-        EulerToQuaternion::EulerAngles ea0;
+        // Creating an object of the class QuaternionEuler and a structure with type EulerAngles
+        QuaternionEuler etq;
+        QuaternionEuler::EulerAngles ea0;
         ea0.roll = 0;
         ea0.pitch = 0;
         ea0.yaw = 0;
-        // Example: run the loop synchronized to the sensor_combined topic publication
-        int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
-        int vehicle_gps_position_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
 
+        int count = 0;
+        bool initial_flag = 1;
+
+        // Running the loop synchronized to the vehicle_attitude topic publication
+        int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+
+        // Operation needed to publish information on actuator_controls_3 topic
         struct actuator_controls_s out;
         memset(&out, 0, sizeof(out));
         orb_advert_t out_pub = orb_advertise(ORB_ID(actuator_controls_3), &out);
 
-        px4_pollfd_struct_t fds[2];
+        // Here we initialize the polling routine; if we need more subscriptions
+        // it is enough to add components to the array fds[] and initialize its components
+        // similarly to the vehicle_attitude one
+        px4_pollfd_struct_t fds[1];
         fds[0].fd = vehicle_attitude_sub;
 	fds[0].events = POLLIN;
-        fds[1].fd = vehicle_gps_position_sub;
-        fds[1].events = POLLIN;
 
 	// initialize parameters
 	parameters_update(true);
@@ -181,9 +187,10 @@ void ServoControl::run()
 
 		} else if (fds[0].revents & POLLIN) {
 
-                        EulerToQuaternion::Quaternion q1;
-                        EulerToQuaternion::EulerAngles ea1;
-                        //struct EulerAngles delta_ea;
+                        QuaternionEuler::Quaternion q1;
+                        QuaternionEuler::EulerAngles ea1;
+                        QuaternionEuler::EulerAngles delta_ea;
+
                         struct vehicle_attitude_s vehicle_attitude;
                         orb_copy(ORB_ID(vehicle_attitude), vehicle_attitude_sub, &vehicle_attitude);
 
@@ -193,53 +200,44 @@ void ServoControl::run()
                         q1.y = vehicle_attitude.q[2];
                         q1.z = vehicle_attitude.q[3];
 
-                        ea1 = etq.ToEulerAngles2(q1);
-                        //delta_ea.pitch = abs(abs(ea1.pitch)-abs(ea0.pitch))*180/3.1416;
-                        ea0 = ea1;
+                        ea1 = etq.QuaternionToEuler(q1); // radiants
 
-                        //if (delta_ea.pitch > 0.02) {
-                            //PX4_INFO("Attitude working");
-                        //}
-
-                        // Publishing PWM output
-                        //out.control[5] = 1;
-                        //orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                        //PX4_INFO("Published");
-
-		}
-
-                // wait for up to 1000ms for data coming from GPS
-                int pret_gps = px4_poll(fds, (sizeof(fds) / sizeof(fds[1])), 1000);
-
-                if (pret_gps == 0) {
-                        // Timeout: let the loop run anyway, don't do `continue` here
-                        PX4_INFO("Waited more than 1 second");
-
-                } else if (pret_gps < 0) {
-                        // this is undesirable but not much we can do
-                        PX4_ERR("poll error %d, %d", pret, errno);
-                        px4_usleep(50000);
-                        continue;
-
-                } else if (fds[1].revents & POLLIN) {
-
-                        struct vehicle_gps_position_s vehicle_gps_position;
-                        orb_copy(ORB_ID(vehicle_gps_position), vehicle_gps_position_sub, &vehicle_gps_position);
-
-                        if ((vehicle_gps_position.lat > 473986610) && (vehicle_gps_position.lat < 473986630)) {
-                            PX4_INFO("GPS working");
-                            // Publishing positive PWM
-                            out.control[5] = 1;
-                            orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                            PX4_INFO("Published 1");
-                        } else {
-                            // Publishing PWM output
-                            out.control[5] = 0;
-                            orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                            PX4_INFO("Published 0");
+                        if (initial_flag) {
+                            ea0 = ea1;
+                            initial_flag = 0;
                         }
 
-                }
+                        // Now we wait for N cycles before making the comparison
+                        if (count >= 40) {
+
+                            delta_ea.pitch = ((ea1.pitch)-(ea0.pitch))*180/3.1416;
+
+                            if (delta_ea.pitch >= 1.5) {
+                                // Publishing PWM output positive
+                                out.control[5] = -1;
+                                orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+                                PX4_INFO("Published positive: %f", delta_ea.pitch);
+                            } else if (delta_ea.pitch <= -1.5) {
+                                // Publishing PWM output negative
+                                out.control[5] = 1;
+                                orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+                                PX4_INFO("Published negative: %f", delta_ea.pitch);
+                            } else {
+                                // Publishing PWM output neutral
+                                out.control[5] = 0;
+                                orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+                                //PX4_INFO("Published neutral");
+                            }
+
+                            ea0 = ea1;
+                            //PX4_INFO("%f",delta_ea.pitch);
+                            count = 0;
+                        }
+
+                        count = count+1;
+                        //PX4_INFO("%d",count);
+
+		}
 
 		parameters_update();
 	}
@@ -291,8 +289,8 @@ $ module start -f -p 42
 	return 0;
 }
 
-EulerToQuaternion::EulerAngles EulerToQuaternion::ToEulerAngles2(Quaternion q) {
-    EulerToQuaternion::EulerAngles angles;
+QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
+    QuaternionEuler::EulerAngles angles;
 
     // roll (x-axis rotation)
     double sinr_cosp = 2 * (q.w * q.x + q.y * q.z);

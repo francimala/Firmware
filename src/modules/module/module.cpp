@@ -45,7 +45,7 @@
 #include <cmath>
 
 
-EulerAngles ToEulerAngles(Quaternion q);
+EulerAngles ToEulerAngles2(Quaternion q);
 
 int Module::print_status()
 {
@@ -189,7 +189,7 @@ void Module::run()
                         q1.y = vehicle_attitude.q[2];
                         q1.z = vehicle_attitude.q[3];
 
-                        ea1 = ToEulerAngles(q1);
+                        ea1 = ToEulerAngles2(q1);
                         //delta_ea.pitch = abs(abs(ea1.pitch)-abs(ea0.pitch))*180/3.1416;
                         ea0 = ea1;
 
@@ -254,7 +254,7 @@ $ module start -f -p 42
 	return 0;
 }
 
-EulerAngles ToEulerAngles(Quaternion q) {
+EulerAngles ToEulerAngles2(Quaternion q) {
     EulerAngles angles;
 
     // roll (x-axis rotation)

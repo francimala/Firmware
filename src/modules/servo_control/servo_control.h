@@ -88,7 +88,7 @@ private:
 
 };
 
-class EulerToQuaternion 
+class QuaternionEuler
 {
 public:
 	struct Quaternion {
@@ -99,7 +99,7 @@ public:
     	double roll, pitch, yaw;
 	};
 
-	EulerAngles ToEulerAngles2(Quaternion q);
+	EulerAngles QuaternionToEuler(Quaternion q);
 
 };
 
