@@ -105,6 +105,7 @@ ServoControl *ServoControl::instantiate(int argc, char *argv[])
 		switch (ch) {
 		case 'p':
 			example_param = (int)strtol(myoptarg, nullptr, 10);
+                        PX4_INFO("Something happened, %d", example_param);
 			break;
 
 		case 'f':
