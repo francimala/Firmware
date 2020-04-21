@@ -74,7 +74,7 @@ int ServoControlPixhawk::custom_command(int argc, char *argv[])
 
 int ServoControlPixhawk::task_spawn(int argc, char *argv[])
 {
-        _task_id = px4_task_spawn_cmd("servo_control",
+        _task_id = px4_task_spawn_cmd("servo_control_pixhawk",
 				      SCHED_DEFAULT,
 				      SCHED_PRIORITY_DEFAULT,
 				      1024,
@@ -145,13 +145,9 @@ void ServoControlPixhawk::run()
 {
         // Creating an object of the class QuaternionEuler and a structure with type EulerAngles
         QuaternionEuler etq;
-        QuaternionEuler::EulerAngles ea0;
-        ea0.roll = 0;
-        ea0.pitch = 0;
-        ea0.yaw = 0;
 
         int count = 0;
-        bool initial_flag = 1;
+        double increment = 0;
 
         // Running the loop synchronized to the vehicle_attitude topic publication
         int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
@@ -189,7 +185,6 @@ void ServoControlPixhawk::run()
 
                         QuaternionEuler::Quaternion q1;
                         QuaternionEuler::EulerAngles ea1;
-                        QuaternionEuler::EulerAngles delta_ea;
 
                         struct vehicle_attitude_s vehicle_attitude;
                         orb_copy(ORB_ID(vehicle_attitude), vehicle_attitude_sub, &vehicle_attitude);
@@ -202,40 +197,25 @@ void ServoControlPixhawk::run()
 
                         ea1 = etq.QuaternionToEuler(q1); // radiants
 
-                        if (initial_flag) {
-                            ea0 = ea1;
-                            initial_flag = 0;
-                        }
-
                         // Now we wait for N cycles before making the comparison
-                        if (count >= 40) {
+                        if (count >= 500) {
 
-                            delta_ea.pitch = ((ea1.pitch)-(ea0.pitch))*180/3.1416;
+                            out.control[1] = increment;
+                            //out.control[0] = -ea1.roll*180/3.1416/60;
+                            orb_publish(ORB_ID(actuator_controls_2), out_pub, &out);
 
-                            if (delta_ea.pitch >= 1.5) {
-                                // Publishing PWM output positive
-                                out.control[1] = -1;
-                                orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                                PX4_INFO("Published positive: %f", delta_ea.pitch);
-                            } else if (delta_ea.pitch <= -1.5) {
-                                // Publishing PWM output negative
-                                out.control[1] = 1;
-                                orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                                PX4_INFO("Published negative: %f", delta_ea.pitch);
-                            } else {
-                                // Publishing PWM output neutral
-                                //out.control[5] = 0;
-                                //orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                                //PX4_INFO("Published neutral");
-                            }
-
-                            ea0 = ea1;
-                            //PX4_INFO("%f",delta_ea.pitch);
+                            PX4_INFO("Attitude --> Roll: %f, Pitch: %f, Yaw: %f", ea1.roll*180/3.1416, ea1.pitch*180/3.1416, ea1.yaw*180/3.1416);
+                            PX4_INFO("Control --> Roll: %f, Pitch: %f, Yaw: %f",ea1.roll*180/3.1416/60, ea1.pitch*180/3.1416/180, ea1.yaw*180/3.1416);
+                            PX4_INFO("Increment: %f",increment);
                             count = 0;
+                            increment = increment + 0.02;
                         }
 
                         count = count+1;
                         //PX4_INFO("%d",count);
+                        if (increment >= 1) {
+                            increment = -1;
+                        }
 
 		}
 
@@ -280,7 +260,7 @@ $ module start -f -p 42
 
 )DESCR_STR");
 
-        PRINT_MODULE_USAGE_NAME("servo_control", "template");
+        PRINT_MODULE_USAGE_NAME("servo_control_pixhawk", "template");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_FLAG('f', "Optional example flag", true);
 	PRINT_MODULE_USAGE_PARAM_INT('p', 0, 0, 1000, "Optional example parameter", true);
@@ -288,7 +268,7 @@ $ module start -f -p 42
 
 	return 0;
 }
-
+/*
 QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
     QuaternionEuler::EulerAngles angles;
 
@@ -311,8 +291,9 @@ QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
 
     return angles;
 }
+*/
 
-int servo_control_main(int argc, char *argv[])
+int servo_control_pixhawk_main(int argc, char *argv[])
 {
         return ServoControlPixhawk::main(argc, argv);
 }

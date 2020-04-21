@@ -51,6 +51,7 @@ px4_add_board(
 		uuv_att_control
 		module # Added by Francesco Malacarne
 		servo_control # Added by Francesco Malacarne
+		servo_control_pixhawk # Added by Francesco Malacarne
 
 	SYSTEMCMDS
 		#config

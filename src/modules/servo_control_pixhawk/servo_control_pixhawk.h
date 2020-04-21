@@ -39,6 +39,7 @@
 #include <uORB/Publication.hpp>
 #include <uORB/topics/parameter_update.h>
 #include <stdlib.h>
+#include <servo_control/servo_control.h>
 
 extern "C" __EXPORT int servo_control_pixhawk_main(int argc, char *argv[]);
 

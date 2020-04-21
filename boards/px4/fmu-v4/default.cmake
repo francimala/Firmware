@@ -86,6 +86,7 @@ px4_add_board(
 		vtol_att_control
 		module
 		servo_control
+		servo_control_pixhawk
 	SYSTEMCMDS
 		bl_update
 		config

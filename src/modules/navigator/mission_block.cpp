@@ -453,7 +453,7 @@ MissionBlock::issue_command(const mission_item_s &item)
                 // New one
                 actuators.control[(int)item.params[0]] = 1.0f / 500 * (item.params[1] - 1500);
 
-                _actuator_pub3.publish(actuators);
+                _actuator_pub.publish(actuators);
 
 	} else {
 		_action_start = hrt_absolute_time();

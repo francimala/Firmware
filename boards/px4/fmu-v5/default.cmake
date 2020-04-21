@@ -88,6 +88,8 @@ px4_add_board(
 		temperature_compensation
 		vmount
 		vtol_att_control
+		servo_control
+		servo_control_pixhawk
 	SYSTEMCMDS
 		bl_update
 		config
