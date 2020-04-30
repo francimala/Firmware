@@ -198,7 +198,7 @@ void ServoControlPixhawk::run()
                         ea1 = etq.QuaternionToEuler(q1); // radiants
 
                         // Now we wait for N cycles before making the comparison
-                        if (count >= 500) {
+                        if (count >= 250) {
 
                             out.control[1] = increment;
                             //out.control[0] = -ea1.roll*180/3.1416/60;

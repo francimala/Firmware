@@ -42,10 +42,11 @@
 
 extern "C" __EXPORT int servo_control_main(int argc, char *argv[]);
 
-
 class ServoControl : public ModuleBase<ServoControl>, public ModuleParams
 {
 public:
+	double input;
+
 	ServoControl(int example_param, bool example_flag);
 
 	virtual ~ServoControl() = default;
@@ -102,5 +103,3 @@ public:
 	EulerAngles QuaternionToEuler(Quaternion q);
 
 };
-
-

@@ -43,7 +43,7 @@
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/actuator_controls.h>
 #include <cmath>
-
+//#include <math.h>
 
 EulerAngles ToEulerAngles2(Quaternion q);
 
@@ -255,6 +255,7 @@ $ module start -f -p 42
 }
 
 EulerAngles ToEulerAngles2(Quaternion q) {
+    using namespace std;
     EulerAngles angles;
 
     // roll (x-axis rotation)
@@ -265,7 +266,8 @@ EulerAngles ToEulerAngles2(Quaternion q) {
     // pitch (y-axis rotation)
     double sinp = 2 * (q.w * q.y - q.z * q.x);
     if (std::abs(sinp) >= 1)
-        angles.pitch = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+        //angles.pitch = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+        angles.pitch = std::asin(sinp);
     else
         angles.pitch = std::asin(sinp);
 
