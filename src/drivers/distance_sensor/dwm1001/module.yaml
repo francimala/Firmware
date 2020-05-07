@@ -1,0 +1,7 @@
+module_name: Decawave DWM1001 Rangefinder
+serial_config:
+    - command: dwm1001 start -d ${SERIAL_DEV}
+      port_config_param:
+        name: SENS_DWM1001_CFG
+        group: Sensors
+

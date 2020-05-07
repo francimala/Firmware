@@ -42,8 +42,6 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/actuator_controls.h>
-#include <cmath>
-//#include <math.h>
 
 
 int ServoControl::print_status()
@@ -280,9 +278,15 @@ QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
 
     // pitch (y-axis rotation)
     double sinp = 2 * (q.w * q.y - q.z * q.x);
-    if (std::abs(sinp) >= 1)
+    if (std::abs(sinp) >= 1) {
         //angles.pitch = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-        angles.pitch = std::asin(sinp);
+        if (sinp > 0) {
+					angles.pitch = M_PI / 2;
+				}
+				else if (sinp < 0) {
+					angles.pitch = -M_PI / 2;
+				}
+		}
     else
         angles.pitch = std::asin(sinp);
 

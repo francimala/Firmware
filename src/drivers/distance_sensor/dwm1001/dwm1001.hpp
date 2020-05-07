@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2017-2019 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,76 +31,68 @@
  *
  ****************************************************************************/
 
+/**
+ * @file DWM1001.cpp
+ * @author Lorenz Meier <lm@inf.ethz.ch>
+ * @author Greg Hulands
+ * @author Ayush Gaud <ayush.gaud@gmail.com>
+ * @author Christoph Tobler <christoph@px4.io>
+ * @author Mohammed Kabir <mhkabir@mit.edu>
+ *
+ * Driver for the Benewake DWM1001 laser rangefinder series
+ */
+
 #pragma once
 
+#include <termios.h>
+
+#include <drivers/drv_hrt.h>
+#include <lib/perf/perf_counter.h>
+#include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/module.h>
-#include <px4_platform_common/module_params.h>
-#include <uORB/Subscription.hpp>
-#include <uORB/Publication.hpp>
-#include <uORB/topics/parameter_update.h>
-#include <stdlib.h>
-#include <cmath>
+#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <lib/drivers/rangefinder/PX4Rangefinder.hpp>
+#include <uORB/topics/distance_sensor.h>
 
-extern "C" __EXPORT int servo_control_main(int argc, char *argv[]);
+#define DWM1001_DEFAULT_PORT	"/dev/ttyS2" // see https://github.com/PX4/px4_user_guide/issues/417
 
-class ServoControl : public ModuleBase<ServoControl>, public ModuleParams
+using namespace time_literals;
+
+class DWM1001 : public px4::ScheduledWorkItem
 {
 public:
-	double input;
+	DWM1001(const char *port, uint8_t rotation = distance_sensor_s::ROTATION_DOWNWARD_FACING);
+	virtual ~DWM1001();
 
-	ServoControl(int example_param, bool example_flag);
+	int init();
 
-	virtual ~ServoControl() = default;
-
-	/** @see ModuleBase */
-	static int task_spawn(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static ServoControl *instantiate(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static int custom_command(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static int print_usage(const char *reason = nullptr);
-
-	/** @see ModuleBase::run() */
-	void run() override;
-
-	/** @see ModuleBase::print_status() */
-	int print_status() override;
+	void print_info();
 
 private:
 
-	/**
-	 * Check for parameter changes and update them if needed.
-	 * @param parameter_update_sub uorb subscription to parameter_update
-	 * @param force for a parameter update
-	 */
-	void parameters_update(bool force = false);
+	int collect();
 
+	void Run() override;
 
-	DEFINE_PARAMETERS(
-		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,   /**< example parameter */
-		(ParamInt<px4::params::SYS_AUTOCONFIG>) _param_sys_autoconfig  /**< another parameter */
-	)
+	void start();
+	void stop();
 
-	// Subscriptions
-	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
+	PX4Rangefinder	_px4_rangefinder;
 
-};
+//	DWM1001_PARSE_STATE _parse_state {DWM1001_PARSE_STATE::STATE0_UNSYNC};
 
-class QuaternionEuler
-{
-public:
-	struct Quaternion {
-    	double w, x, y, z;
-	};
+	char _linebuf[10] {};
+	char _port[20] {};
 
-	struct EulerAngles {
-    	double roll, pitch, yaw;
-	};
+	static constexpr int kCONVERSIONINTERVAL{9_ms};
 
-	EulerAngles QuaternionToEuler(Quaternion q);
+	int _fd{-1};
+
+	unsigned int _linebuf_index{0};
+
+	hrt_abstime _last_read{0};
+
+	perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
+	perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};
 
 };
