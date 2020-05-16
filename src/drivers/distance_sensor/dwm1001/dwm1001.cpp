@@ -33,10 +33,12 @@
 
 #include "dwm1001.hpp"
 
-DWM1001::DWM1001(const char *port,  uint8_t rotation) :
+DWM1001::DWM1001(const char *port) :
 	ScheduledWorkItem(MODULE_NAME, px4::serial_port_to_wq(port)),
-	_px4_rangefinder(0 /* TODO: device id */, ORB_PRIO_DEFAULT, rotation)
+	CDev(DWM1001_DEFAULT_PORT)
 {
+	PX4_INFO("DWM1001 function, the first one present, before strncpy");
+
 	// store port name
 	strncpy(_port, port, sizeof(_port) - 1);
 
@@ -58,6 +60,7 @@ DWM1001::init()
 {
 	// status
 	int ret = 0;
+	PX4_INFO("DWM1001 initialization started");
 
 	do { // create a scope to handle exit conditions using break
 
@@ -68,6 +71,8 @@ DWM1001::init()
 			PX4_ERR("Error opening fd");
 			return -1;
 		}
+
+		PX4_INFO("This is fd after opening the connection: %d",_fd);
 
 		// baudrate 115200, 8 bits, no parity, 1 stop bit
 		unsigned speed = B115200;
@@ -105,6 +110,7 @@ DWM1001::init()
 		uart_config.c_cflag &= ~CSTOPB;			// only need 1 stop bit
 		uart_config.c_cflag &= ~CRTSCTS;		// no hardware flowcontrol
 
+		/*
 		// setup for non-canonical mode
 		uart_config.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
 		uart_config.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
@@ -113,21 +119,30 @@ DWM1001::init()
 		// fetch bytes as they become available
 		uart_config.c_cc[VMIN] = 1;
 		uart_config.c_cc[VTIME] = 1;
+		*/
 
 		if (_fd < 0) {
 			PX4_ERR("FAIL: laser fd");
 			ret = -1;
 			break;
 		}
+
 	} while (0);
 
 	// close the fd
 	::close(_fd);
 	_fd = -1;
 
+	PX4_INFO("I have closed the file, this is fd %d",_fd);
+
 	if (ret == PX4_OK) {
+		PX4_INFO("Start is launched");
 		start();
 	}
+
+	PX4_INFO("DWM1001 initialization compelted, the communication should be fine");
+	PX4_INFO("This is ret %d",ret);
+	px4_usleep(10000);
 
 	return ret;
 }
@@ -136,25 +151,36 @@ int
 DWM1001::collect()
 {
 	perf_begin(_sample_perf);
+	PX4_INFO("DWM1001 collection started");
 
 	// clear buffer if last read was too long ago
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
 	// the buffer for read chars is buflen minus null termination
-	char readbuf[sizeof(_linebuf)] {};
-	unsigned readlen = sizeof(readbuf) - 1;
+	int readlen = 36; // how many characters do I want to read? This value must be >= 36
+	char readbuf[readlen-1];
 
 	int ret = 0;
 //	float distance_m = -1.0f;
 
+//////////////////////////////////////////////////////////////////////////
+
 	// Check the number of bytes available in the buffer
 	int bytes_available = 0;
+	PX4_INFO("This is fd before using ioctl: %d",_fd);
 	::ioctl(_fd, FIONREAD, (unsigned long)&bytes_available);
+	px4_sleep(1);
+	PX4_INFO("ioctl performed in collect, bytes_available: %d", bytes_available);
+
 
 	if (!bytes_available) {
+		PX4_INFO("No bytes available");
 		perf_end(_sample_perf);
 		return -EAGAIN;
 	}
+
+////////////////////////////////////////////////////////////////////////////
+
 
 	// parse entire buffer
 //	const hrt_abstime timestamp_sample = hrt_absolute_time(); // UNLOCK THISSSS
@@ -162,6 +188,7 @@ DWM1001::collect()
 	do {
 		// read from the sensor (uart buffer)
 		ret = ::read(_fd, &readbuf[0], readlen); // this is the KEY
+		PX4_INFO("I'm in the do component");
 
 		if (ret < 0) {
 			PX4_ERR("read err: %d", ret);
@@ -204,7 +231,7 @@ DWM1001::collect()
 	_px4_rangefinder.update(timestamp_sample, distance_m);
 	*/
 ///////////////////////////////////////////////////////////////////////////////////////////
-  } while(1);
+} while(0);
 
 	perf_end(_sample_perf);
 
@@ -215,18 +242,21 @@ void
 DWM1001::start()
 {
 	// schedule a cycle to start things
-	ScheduleOnInterval(100_us);
+	PX4_INFO("DWM1001 start");
+	ScheduleOnInterval(1000_ms);
 }
 
 void
 DWM1001::stop()
 {
+	PX4_INFO("DWM1001 stop");
 	ScheduleClear();
 }
 
 void
 DWM1001::Run()
 {
+	PX4_INFO("DWM1001 run");
 	// fds initialized?
 	if (_fd < 0) {
 		// open fd
@@ -237,7 +267,7 @@ DWM1001::Run()
 	if (collect() == -EAGAIN) {
 		// reschedule to grab the missing bits, time to transmit 9 bytes @ 115200 bps
 		ScheduleClear();
-		ScheduleOnInterval(100_us, 87 * 9);
+		ScheduleOnInterval(1000_ms, 87 * 9);
 		return;
 	}
 }
@@ -249,5 +279,5 @@ DWM1001::print_info()
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 
-	_px4_rangefinder.print_status();
+	PX4_INFO("Still WIP");
 }

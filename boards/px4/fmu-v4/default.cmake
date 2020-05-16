@@ -54,6 +54,7 @@ px4_add_board(
 		test_ppm
 		tone_alarm
 		uavcan
+		uwb # Added by Francesco Malacarne
 	MODULES
 		airspeed_selector
 		attitude_estimator_q

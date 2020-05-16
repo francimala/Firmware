@@ -276,7 +276,7 @@ void
 LeddarOne::Run()
 {
 	// Ensure the serial port is open.
-	open_serial_port();
+	open_serial_port();	Run();
 
 	collect();
 }

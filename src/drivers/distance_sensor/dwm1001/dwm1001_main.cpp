@@ -43,13 +43,13 @@ namespace dwm1001
 
 DWM1001	*g_dev{nullptr};
 
-int start(const char *port, uint8_t rotation);
+int start(const char *port);
 int status();
 int stop();
 int usage();
 
 int
-start(const char *port, uint8_t rotation)
+start(const char *port)
 {
 	if (g_dev != nullptr) {
 		PX4_ERR("already started");
@@ -57,7 +57,7 @@ start(const char *port, uint8_t rotation)
 	}
 
 	// Instantiate the driver.
-	g_dev = new DWM1001(port, rotation);
+	g_dev = new DWM1001(port);
 
 	if (g_dev == nullptr) {
 		PX4_ERR("driver start failed");
@@ -70,6 +70,8 @@ start(const char *port, uint8_t rotation)
 		g_dev = nullptr;
 		return PX4_ERROR;
 	}
+
+	PX4_INFO("I have executed the start inside the main, now I return PX4_OK");
 
 	return PX4_OK;
 }
@@ -141,8 +143,8 @@ $ dwm1001 stop
 
 extern "C" __EXPORT int dwm1001_main(int argc, char *argv[])
 {
+	PX4_INFO("The main is started");
 	int ch = 0;
-	uint8_t rotation = distance_sensor_s::ROTATION_DOWNWARD_FACING;
 	const char *device_path = DWM1001_DEFAULT_PORT;
 	int myoptind = 1;
 	const char *myoptarg = nullptr;
@@ -150,7 +152,7 @@ extern "C" __EXPORT int dwm1001_main(int argc, char *argv[])
 	while ((ch = px4_getopt(argc, argv, "R:d:", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'R':
-			rotation = (uint8_t)atoi(myoptarg);
+			//rotation = (uint8_t)atoi(myoptarg);
 			break;
 
 		case 'd':
@@ -170,7 +172,8 @@ extern "C" __EXPORT int dwm1001_main(int argc, char *argv[])
 
 	if (!strcmp(argv[myoptind], "start")) {
 		if (strcmp(device_path, "") != 0) {
-			return dwm1001::start(device_path, rotation);
+			PX4_INFO("Brother, I'm in the main and I'm launching start (in the main)!");
+			return dwm1001::start(device_path);
 
 		} else {
 			PX4_WARN("Please specify device path!");

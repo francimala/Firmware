@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2017-2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2012-2016 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,71 +31,66 @@
  *
  ****************************************************************************/
 
-/**
- * @file DWM1001.cpp
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Greg Hulands
- * @author Ayush Gaud <ayush.gaud@gmail.com>
- * @author Christoph Tobler <christoph@px4.io>
- * @author Mohammed Kabir <mhkabir@mit.edu>
- *
- * Driver for the Benewake DWM1001 laser rangefinder series
+/*
+ * @file dwm1001.hpp
+ * DWM1001 driver
+ * @author Francesco Malacarne - francesco.malacarne@gmail.com
  */
 
-#pragma once
+ #include <px4_platform_common/px4_config.h>
+ #include <px4_platform_common/tasks.h>
+ #include <px4_platform_common/posix.h>
+ #include <px4_platform_common/log.h>
 
-#include <termios.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
 
-#include <sys/select.h>
+ #include <unistd.h>
+ #include <stdio.h>
+ #include <stdarg.h>
+ #include <poll.h>
+ #include <string.h>
+ #include <math.h>
 
-#include <drivers/drv_hrt.h>
-#include <lib/perf/perf_counter.h>
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/module.h>
-#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
-#include <uORB/topics/distance_sensor.h>
-#include <lib/cdev/CDev.hpp>
-#include <uORB/uORB.h>
-#include <uORB/PublicationMulti.hpp>
+ #include <termios.h>
+ #include <unistd.h>
+ #include <stdbool.h>
+ #include <errno.h>
+ #include <drivers/drv_hrt.h>
+ #include <lib/perf/perf_counter.h>
 
-#define DWM1001_DEFAULT_PORT	"/dev/ttyS2" // see https://github.com/PX4/px4_user_guide/issues/417
+ #include <uORB/uORB.h>
 
-using namespace time_literals;
+ #define DWM1001_PORT	"/dev/ttyS2" // see https://github.com/PX4/px4_user_guide/issues/417
 
-class DWM1001 : public px4::ScheduledWorkItem, public cdev::CDev
-{
+ extern "C" __EXPORT int dwm1001_main(int argc, char *argv[]);
 
-public:
-	DWM1001(const char *port);
-	virtual ~DWM1001();
+ /**
+  * Get values from  sensors
+  */
+ void getValue(double *data);
+ /**
+  * Main loop of daemon
+  */
+ int dwm1001_thread_main(int argc, char *argv[]);
+ /**
+  * Print the correct usage.
+  */
+ static void usage(const char *reason);
+ /**
+  * ...
+  */
+ int set_uart_baudrate(const int fd, unsigned int baud);
+ /**
+  * ...
+  */
+ static int uart_init(char const *uart_name);
 
-	int init();
+ int ret;
 
-	void print_info();
+ // ADDED
+ hrt_abstime _last_read{0};
 
-private:
-
-	int collect();
-
-	void Run() override;
-
-	void start();
-	void stop();
-
-//	DWM1001_PARSE_STATE _parse_state {DWM1001_PARSE_STATE::STATE0_UNSYNC};
-
-//	char _linebuf[10] {};
-	char _port[20] {};
-
-	static constexpr int kCONVERSIONINTERVAL{9_ms};
-
-	int _fd{-1};
-
-	unsigned int _linebuf_index{0};
-
-	hrt_abstime _last_read{0};
-
-	perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
-	perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};
-
-};
+ perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
+ perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};
