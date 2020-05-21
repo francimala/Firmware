@@ -231,13 +231,25 @@
 
  int dwm1001_thread_main(int argc, char *argv[])
  {
-//     int cnt = 0;
+     int cnt = 0;
+     int j = 0; // counter for message bits
+     int k = 0; // counter for distances
+     int reset_cnt = 0;
+     int dimension = 37;
+     int flag_init = 0;
      DWM1001 _dwm1001;
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
-//     char data[36];
+     char data[46];
+     char distances_char[5];
+     double distances[4];
 
      PX4_INFO("The main task is now started, first the initializaiton, then the baudrate set");
+
+     /* advertise attitude topic */
+     struct dwm1001_s dist;
+     memset(&dist, 0, sizeof(dist));
+     orb_advert_t dist_pub_fd = orb_advertise(ORB_ID(dwm1001), &dist);
 
      //UART open
      int uart = _dwm1001.uart_init(DWM1001_PORT);
@@ -261,9 +273,94 @@
        // ADDED
        perf_begin(_dwm1001._sample_perf);
 
-       ::read(uart, &readbuf[0], 1); // ret is the number of read values.
+       // We read one single value per cycle
 
-       printf("%c", readbuf[0]);
+       ::read(uart, &readbuf[0], 1); // ret is the number of read values
+
+       //printf("%c", readbuf[0]);
+
+       // The first task is to understand the beginning of the message.
+       // Since the message starts with DI, we need to find it.
+
+       if(readbuf[0] == '\n' && flag_init == 0) {
+         data[0] = 'D';
+       }
+       if(data[0] == readbuf[0] && flag_init == 0) {
+         data[1] = 'I';
+       }
+       if(data[1] == readbuf[0] && flag_init == 0) {
+         printf("\nGot the beginning\n");
+         flag_init = 1;
+         cnt = 1;
+       }
+       if (flag_init) {
+         data[cnt] = readbuf[0];
+         cnt++;
+       }
+       // We need to continuously check the length of the message, because
+       // distances may change over time
+       if(flag_init == 1 && readbuf[0] == '\n') {
+         dimension = cnt; // Number of elements of the array (37)
+         // ERROR detection: if the message length is less than the minimum of
+         // 37 it means the message ended before the real end
+         if(dimension < 30) {
+           PX4_INFO("ERROR: not enough data exchanged, communication problem");
+           flag_init = 0; // I'm now restarting from the beginning basically.
+           cnt = 0;
+           dimension = 39; // with 37 it works
+           k = 0;
+           j = 0;
+           reset_cnt++; // We need to count the reset attempts
+           if(false == _dwm1001.dwm1001_programming(uart)) {
+             PX4_INFO("ERROR: I reprogrammed DWM1001 but I failed");
+             return -1;
+           }
+           if (reset_cnt >= 3) {
+             PX4_INFO("ERROR: too many reset attempt failed");
+             return -1;
+           }
+         }
+         //printf("%d\n", dimension);
+       }
+
+       // Testing this condition we are sure about the length of the message.
+       // Now the message is correctly saved inside data[], so it can be used.
+       if (cnt >= dimension && flag_init == 1) {
+         if (reset_cnt == 0) { // being sure no error occurred
+           for (int i = 0; i<dimension; i++) { // scanning all the message
+             if (i >= 16 && (data[i] != ',' && data[i] != '\r')) {
+               distances_char[j] = data[i];
+               j++;
+             }
+             else if (i >= 16 && (data[i] == ',' || data[i] == '\r')) {
+               distances[k] = atof(distances_char);
+               k++;
+               if(k>3) {
+                 k = 0;
+               }
+               j = 0;
+             }
+           }
+           //printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
+           for(int d = 0; d < 4; d++) {
+             dist.distances[d] = (float)distances[d];
+           }
+           orb_publish(ORB_ID(dwm1001), dist_pub_fd, &dist);
+         }
+
+         cnt = 0;
+         reset_cnt = 0;
+       }
+
+
+/*
+       if (cnt >= dimension && flag_init == 1) {
+         printf("%c%c%c%c\n", data[31], data[32], data[33], data[34]);
+         cnt = 0;
+         reset_cnt = 0;
+       }
+*/
+
 
        perf_end(_dwm1001._sample_perf);
      }

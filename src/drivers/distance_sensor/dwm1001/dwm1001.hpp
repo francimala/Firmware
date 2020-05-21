@@ -51,6 +51,7 @@
  #include <fcntl.h>
 
  #include <unistd.h>
+ #include <stdlib.h>
  #include <stdio.h>
  #include <stdarg.h>
  #include <poll.h>
@@ -65,6 +66,10 @@
  #include <lib/perf/perf_counter.h>
 
  #include <uORB/uORB.h>
+ #include <uORB/Subscription.hpp>
+ #include <uORB/Publication.hpp>
+ #include <uORB/topics/parameter_update.h>
+ #include <uORB/topics/dwm1001.h>
 
  #define DWM1001_PORT	"/dev/ttyS2" // see https://github.com/PX4/px4_user_guide/issues/417
 
