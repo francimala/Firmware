@@ -36,9 +36,8 @@ px4_add_module(
 	SRCS
 		dwm1001.cpp
 		dwm1001.hpp
-#		dwm1001_main.cpp
 	MODULE_CONFIG
 		module.yaml
 	DEPENDS
-		px4_work_queue
+		drivers_rangefinder
 	)

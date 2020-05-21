@@ -34,8 +34,8 @@
 #include "dwm1001.hpp"
 
 DWM1001::DWM1001(const char *port) :
-	ScheduledWorkItem(MODULE_NAME, px4::serial_port_to_wq(port)),
-	CDev(DWM1001_DEFAULT_PORT)
+	ModuleParams(nullptr),
+	ScheduledWorkItem(MODULE_NAME, px4::serial_port_to_wq(port))
 {
 	PX4_INFO("DWM1001 function, the first one present, before strncpy");
 
@@ -55,8 +55,7 @@ DWM1001::~DWM1001()
 	perf_free(_comms_errors);
 }
 
-int
-DWM1001::init()
+bool DWM1001::init()
 {
 	// status
 	int ret = 0;
@@ -65,11 +64,11 @@ DWM1001::init()
 	do { // create a scope to handle exit conditions using break
 
 		// open fd
-		_fd = ::open(_port, O_RDWR | O_NOCTTY);
+		_fd = ::open(_port, O_RDWR | O_NOCTTY | O_SYNC);
 
 		if (_fd < 0) {
 			PX4_ERR("Error opening fd");
-			return -1;
+			return false;
 		}
 
 		PX4_INFO("This is fd after opening the connection: %d",_fd);
@@ -79,7 +78,10 @@ DWM1001::init()
 		termios uart_config{};
 		int termios_state{};
 
-		tcgetattr(_fd, &uart_config);
+		if(tcgetattr(_fd, &uart_config) < 0) {
+	    PX4_ERR("Error from tcgetattr");
+	    return false;
+	  };
 
 		// clear ONLCR flag (which appends a CR for every LF)
 		uart_config.c_oflag &= ~ONLCR;
@@ -88,19 +90,13 @@ DWM1001::init()
 		if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
 			PX4_ERR("CFG: %d ISPD", termios_state);
 			ret = -1;
-			break;
+			return false;
 		}
 
 		if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
 			PX4_ERR("CFG: %d OSPD\n", termios_state);
 			ret = -1;
-			break;
-		}
-
-		if ((termios_state = tcsetattr(_fd, TCSANOW, &uart_config)) < 0) {
-			PX4_ERR("baud %d ATTR", termios_state);
-			ret = -1;
-			break;
+			return false;
 		}
 
 		uart_config.c_cflag |= (CLOCAL | CREAD);	// ignore modem controls
@@ -110,7 +106,6 @@ DWM1001::init()
 		uart_config.c_cflag &= ~CSTOPB;			// only need 1 stop bit
 		uart_config.c_cflag &= ~CRTSCTS;		// no hardware flowcontrol
 
-		/*
 		// setup for non-canonical mode
 		uart_config.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
 		uart_config.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
@@ -119,13 +114,20 @@ DWM1001::init()
 		// fetch bytes as they become available
 		uart_config.c_cc[VMIN] = 1;
 		uart_config.c_cc[VTIME] = 1;
-		*/
+
+		if ((termios_state = tcsetattr(_fd, TCSANOW, &uart_config)) < 0) {
+			PX4_ERR("baud %d ATTR", termios_state);
+			ret = -1;
+			return false;
+		}
 
 		if (_fd < 0) {
-			PX4_ERR("FAIL: laser fd");
+			PX4_ERR("FAIL: fd is negative at the end of the initialization");
 			ret = -1;
-			break;
+			return false;
 		}
+
+		tcflush(_fd, TCIOFLUSH); // flushes both data received but not read, and data written but not transmitted.
 
 	} while (0);
 
@@ -136,148 +138,131 @@ DWM1001::init()
 	PX4_INFO("I have closed the file, this is fd %d",_fd);
 
 	if (ret == PX4_OK) {
-		PX4_INFO("Start is launched");
+		PX4_INFO("Start is now launched");
 		start();
 	}
 
 	PX4_INFO("DWM1001 initialization compelted, the communication should be fine");
 	PX4_INFO("This is ret %d",ret);
-	px4_usleep(10000);
 
-	return ret;
+	return true;
 }
 
-int
-DWM1001::collect()
+int DWM1001::collect()
 {
 	perf_begin(_sample_perf);
 	PX4_INFO("DWM1001 collection started");
 
 	// clear buffer if last read was too long ago
-	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
+	//int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
 	// the buffer for read chars is buflen minus null termination
-	int readlen = 36; // how many characters do I want to read? This value must be >= 36
+	int readlen = 10; // how many characters do I want to read? This value must be >= 36
 	char readbuf[readlen-1];
 
-	int ret = 0;
-//	float distance_m = -1.0f;
-
-//////////////////////////////////////////////////////////////////////////
-
-	// Check the number of bytes available in the buffer
-	int bytes_available = 0;
-	PX4_INFO("This is fd before using ioctl: %d",_fd);
-	::ioctl(_fd, FIONREAD, (unsigned long)&bytes_available);
-	px4_sleep(1);
-	PX4_INFO("ioctl performed in collect, bytes_available: %d", bytes_available);
-
-
-	if (!bytes_available) {
-		PX4_INFO("No bytes available");
-		perf_end(_sample_perf);
-		return -EAGAIN;
-	}
-
-////////////////////////////////////////////////////////////////////////////
-
-
-	// parse entire buffer
-//	const hrt_abstime timestamp_sample = hrt_absolute_time(); // UNLOCK THISSSS
-
-	do {
-		// read from the sensor (uart buffer)
-		ret = ::read(_fd, &readbuf[0], readlen); // this is the KEY
-		PX4_INFO("I'm in the do component");
-
-		if (ret < 0) {
-			PX4_ERR("read err: %d", ret);
-			perf_count(_comms_errors);
-			perf_end(_sample_perf);
-
-			// only throw an error if we time out
-			if (read_elapsed > (kCONVERSIONINTERVAL * 2)) {
-				/* flush anything in RX buffer */
-				tcflush(_fd, TCIFLUSH);
-				return ret;
-
-			} else {
-				return -EAGAIN;
-			}
-		}
-
-		_last_read = hrt_absolute_time();
-
-		PX4_INFO("%c",readbuf[0]); // CHECK THIS
-///////////////////////////////////////////////////////////////////////////////////////
-/*
-		// parse buffer
-		for (int i = 0; i < ret; i++) {
-			dwm1001_parse(readbuf[i], _linebuf, &_linebuf_index, &_parse_state, &distance_m);
-		}
-
-		// bytes left to parse
-		bytes_available -= ret;
-
-	} while (bytes_available > 0);
-
-	// no valid measurement after parsing buffer
-	if (distance_m < 0.0f) {
-		perf_end(_sample_perf);
-		return -EAGAIN;
-	}
-
-	// publish most recent valid measurement from buffer
-	_px4_rangefinder.update(timestamp_sample, distance_m);
-	*/
-///////////////////////////////////////////////////////////////////////////////////////////
-} while(0);
+	// read from the sensor (uart buffer)
+	::read(_fd, &readbuf[0], 1); // this is the KEY
+	printf("%c", readbuf[0]);
 
 	perf_end(_sample_perf);
 
 	return PX4_OK;
 }
 
-void
-DWM1001::start()
+void DWM1001::start()
 {
 	// schedule a cycle to start things
-	PX4_INFO("DWM1001 start");
-	ScheduleOnInterval(1000_ms);
+	PX4_INFO("DWM1001 start function");
+	ScheduleOnInterval(1000_us);
 }
 
-void
-DWM1001::stop()
+void DWM1001::stop()
 {
 	PX4_INFO("DWM1001 stop");
 	ScheduleClear();
 }
 
-void
-DWM1001::Run()
+void DWM1001::Run()
 {
 	PX4_INFO("DWM1001 run");
+
+	if (should_exit()) {
+		stop();
+	}
+
 	// fds initialized?
 	if (_fd < 0) {
 		// open fd
-		_fd = ::open(_port, O_RDWR | O_NOCTTY);
+		_fd = ::open(_port, O_RDWR | O_NOCTTY | O_SYNC);
 	}
 
 	// perform collection
 	if (collect() == -EAGAIN) {
 		// reschedule to grab the missing bits, time to transmit 9 bytes @ 115200 bps
 		ScheduleClear();
-		ScheduleOnInterval(1000_ms, 87 * 9);
+		ScheduleOnInterval(1000_us, 87 * 9);
 		return;
 	}
 }
 
-void
-DWM1001::print_info()
+int DWM1001::task_spawn(int argc, char *argv[])
 {
-	printf("Using port '%s'\n", _port);
+	PX4_INFO("task_spawn is launched");
+	DWM1001 *instance = new DWM1001(DWM1001_DEFAULT_PORT);
+
+	if (instance) {
+		_object.store(instance);
+		_task_id = task_id_is_work_queue;
+
+		if (instance->init()) {
+			return PX4_OK;
+		}
+
+	} else {
+		PX4_ERR("alloc failed");
+	}
+
+	delete instance;
+	_object.store(nullptr);
+	_task_id = -1;
+
+	return PX4_ERROR;
+}
+
+int DWM1001::print_status()
+{
+	PX4_INFO("print status function");
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
+	return 0;
+}
 
-	PX4_INFO("Still WIP");
+int DWM1001::custom_command(int argc, char *argv[])
+{
+	return print_usage("unknown command");
+}
+
+int DWM1001::print_usage(const char *reason)
+{
+	if (reason) {
+		PX4_WARN("%s\n", reason);
+	}
+
+		PRINT_MODULE_DESCRIPTION(
+			R"DESCR_STR(
+	### Description
+	Example of a simple module running out of a work queue.
+	)DESCR_STR");
+
+		PRINT_MODULE_USAGE_NAME("dwm1001", "template");
+		PRINT_MODULE_USAGE_COMMAND("start");
+		PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
+
+		return 0;
+}
+
+extern "C" __EXPORT int dwm1001_main(int argc, char *argv[])
+{
+	PX4_INFO("The main is started");
+	return DWM1001::main(argc, argv);
 }

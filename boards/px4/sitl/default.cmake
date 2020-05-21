@@ -88,6 +88,7 @@ px4_add_board(
 		rover_steering_control # Rover example app
 		uuv_example_app
 		pitch_subscription_pin5_publication # Francesco Malacarne
+		work_item # Francesco Malacarne
 	)
 
 set(config_sitl_viewer jmavsim CACHE STRING "viewer for sitl")

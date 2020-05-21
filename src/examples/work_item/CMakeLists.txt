@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2017-2019 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2020 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,15 +30,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+
 px4_add_module(
-	MODULE drivers__dwm1001
-	MAIN dwm1001
+	MODULE examples__work_item
+	MAIN work_item_example
+	COMPILE_FLAGS
 	SRCS
-		dwm1001.cpp
-		dwm1001.hpp
-#		dwm1001_main.cpp
-	MODULE_CONFIG
-		module.yaml
+		WorkItemExample.cpp
+		WorkItemExample.hpp
 	DEPENDS
 		px4_work_queue
 	)

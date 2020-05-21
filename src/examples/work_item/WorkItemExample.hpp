@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2017-2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,47 +31,24 @@
  *
  ****************************************************************************/
 
-/**
- * @file DWM1001.cpp
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Greg Hulands
- * @author Ayush Gaud <ayush.gaud@gmail.com>
- * @author Christoph Tobler <christoph@px4.io>
- * @author Mohammed Kabir <mhkabir@mit.edu>
- *
- * Driver for the Benewake DWM1001 laser rangefinder series
- */
-
 #pragma once
 
-#include <termios.h>
-#include <sys/select.h>
-
-#include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/defines.h>
-#include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/posix.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
-
-#include <uORB/uORB.h>
+#include <uORB/topics/sensor_accel.h>
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
-#include <uORB/PublicationMulti.hpp>
 
-#define DWM1001_DEFAULT_PORT	"/dev/ttyS2" // see https://github.com/PX4/px4_user_guide/issues/417
-
-using namespace time_literals;
-
-class DWM1001 : public ModuleBase<DWM1001>, public ModuleParams, public px4::ScheduledWorkItem
+class WorkItemExample : public ModuleBase<WorkItemExample>, public ModuleParams, public px4::ScheduledWorkItem
 {
-
 public:
-	DWM1001(const char *port);
-	virtual ~DWM1001();
+	WorkItemExample();
+	~WorkItemExample() override;
 
 	/** @see ModuleBase */
 	static int task_spawn(int argc, char *argv[]);
@@ -86,31 +63,13 @@ public:
 
 	int print_status() override;
 
-//	int init();
-
-//	void print_info();
-
 private:
-
 	void Run() override;
 
-	int collect();
+	//uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
 
-	void start();
-	void stop();
+	uORB::SubscriptionData<sensor_accel_s> _sensor_accel_sub{ORB_ID(sensor_accel)};
 
-//	char _linebuf[10] {};
-	char _port[20] {};
-
-	static constexpr int kCONVERSIONINTERVAL{9_ms};
-
-	int _fd{-1};
-
-	unsigned int _linebuf_index{0};
-
-	hrt_abstime _last_read{0};
-
-	perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
-	perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};
-
+	perf_counter_t	_loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
+	perf_counter_t	_loop_interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": interval")};
 };

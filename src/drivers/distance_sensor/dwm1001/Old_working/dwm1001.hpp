@@ -34,17 +34,13 @@
 /*
  * @file dwm1001.hpp
  * DWM1001 driver
- * @author Francesco Malacarne - s260199@studenti.polito.it
+ * @author Francesco Malacarne - francesco.malacarne@gmail.com
  */
 
  #include <px4_platform_common/px4_config.h>
  #include <px4_platform_common/tasks.h>
  #include <px4_platform_common/posix.h>
  #include <px4_platform_common/log.h>
- #include <px4_platform_common/defines.h>
- #include <px4_platform_common/module.h>
- #include <px4_platform_common/module_params.h>
- #include <px4_platform_common/posix.h>
 
  #include <sys/types.h>
  #include <sys/stat.h>
@@ -70,33 +66,28 @@
 
  extern "C" __EXPORT int dwm1001_main(int argc, char *argv[]);
 
-class DWM1001 //: public ModuleBase<DWM1001>, public ModuleParams
-{
-public:
-  /**
-   * Print the correct usage
-   */
-  static void usage(const char *reason);
-  /**
-   * Serial communication configuration
-   */
-  int set_uart_baudrate(const int _fd);
-  /**
-   * UART initialization
-   */
-  static int uart_init(char const *uart_name);
-  /**
-   * DWM1001 programming (lec)
-   */
-  int dwm1001_programming(const int _fd);
+ /**
+  * Main loop of dwm1001 driver
+  */
+ int dwm1001_thread_main(int argc, char *argv[]);
+ /**
+  * Print the correct usage
+  */
+ static void usage(const char *reason);
+ /**
+  * Serial communication configuration
+  */
+ int set_uart_baudrate(const int _fd);
+ /**
+  * UART initialization
+  */
+ static int uart_init(char const *uart_name);
+ /**
+  * DWM1001 programming (lec)
+  */
+ int dwm1001_programming(const int _fd);
 
-  int ret;
+ int ret;
 
-  perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
-  perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};
-};
-
-/**
- * Main loop of dwm1001 driver
- */
-int dwm1001_thread_main(int argc, char *argv[]);
+ perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
+ perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};

@@ -34,19 +34,19 @@
 /*
  * @file dwm1001.cpp
  * DWM1001 driver
- * @author Francesco Malacarne - s260199@studenti.polito.it
+ * @author Francesco Malacarne - francesco.malacarne@gmail.com
  */
 
 #include "dwm1001.hpp"
 
- //__EXPORT int dwm1001_main(int argc, char *argv[]);
+ __EXPORT int dwm1001_main(int argc, char *argv[]);
 
  /* static variables */
- static bool dwm1001_thread_should_exit = false;        /**< dwm1001 exit flag */
- static bool dwm1001_thread_running = false;            /**< dwm1001 status flag */
- static int dwm1001_task;                               /**< Handle of dwm1001 task / thread */
+ static bool thread_should_exit = false;        /**< dwm1001 exit flag */
+ static bool thread_running = false;            /**< dwm1001 status flag */
+ static int dwm1001_task;                       /**< Handle of dwm1001 task / thread */
 
- int DWM1001::set_uart_baudrate(const int _fd)
+ int set_uart_baudrate(const int _fd)
  {
   // baudrate 115200, 8 bits, no parity, 1 stop bit
   unsigned speed = B115200;
@@ -64,13 +64,13 @@
   // set baud rate
   if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
     PX4_ERR("CFG: %d ISPD", termios_state);
-    //ret = -1;
+    ret = -1;
     return false;
   }
 
   if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
     PX4_ERR("CFG: %d OSPD", termios_state);
-    //ret = -1;
+    ret = -1;
     return false;
   }
 
@@ -92,16 +92,16 @@
 
   if ((termios_state = tcsetattr(_fd, TCSANOW, &uart_config)) < 0) {
     PX4_ERR("baud %d ATTR", termios_state);
-    //ret = -1;
+    ret = -1;
     return false;
   }
 
   tcflush(_fd, TCIOFLUSH); // flushes both data received but not read, and data written but not transmitted.
 
   return true;
-}
+ }
 
- int DWM1001::uart_init(char const *uart_name)
+ int uart_init(char const *uart_name)
  {
      int serial_fd = open(uart_name, O_RDWR | O_NOCTTY | O_SYNC);
      //int serial_fd = open(uart_name, O_RDWR | O_NOCTTY); // not working
@@ -113,7 +113,8 @@
      return serial_fd;
  }
 
- int DWM1001::dwm1001_programming(const int _fd)
+ int
+ dwm1001_programming(const int _fd)
  {
   int num_bytes = 0;
   // Flush the receive buffer: data received but not read.
@@ -161,7 +162,8 @@
   return true;
  }
 
- void DWM1001::usage(const char *reason)
+ void
+ usage(const char *reason)
  {
      if (reason) {
          PX4_INFO("%s", reason);
@@ -171,39 +173,40 @@
      exit(1);
  }
 
- int dwm1001_main(int argc, char *argv[])
+ int
+ dwm1001_main(int argc, char *argv[])
  {
 
      if (argc < 2) {
-         PX4_INFO("missing command");
+         usage("missing command");
      }
 
      if (!strcmp(argv[1], "start")) {
 
-         if (dwm1001_thread_running) {
+         if (thread_running) {
              PX4_INFO("running");
              /* this is not an error */
              exit(0);
          }
 
-         dwm1001_thread_should_exit = false;
+         thread_should_exit = false;
          dwm1001_task = px4_task_spawn_cmd("dwm1001",
                          SCHED_DEFAULT,
                          SCHED_PRIORITY_DEFAULT,
                          3000,
                          dwm1001_thread_main,
                          (char * const *)&argv[0]);
-         dwm1001_thread_running = true;
+         thread_running = true;
          exit(0);
      }
 
      if (!strcmp(argv[1], "stop")) {
-         dwm1001_thread_should_exit = true;
+         thread_should_exit = true;
          exit(0);
      }
 
      if (!strcmp(argv[1], "status")) {
-         if (dwm1001_thread_running) {
+         if (thread_running) {
              PX4_INFO("running");
 
          } else {
@@ -216,10 +219,10 @@
  return 0;
  }
 
- int dwm1001_thread_main(int argc, char *argv[])
+ int
+ dwm1001_thread_main(int argc, char *argv[])
  {
 //     int cnt = 0;
-     DWM1001 _dwm1001;
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
 //     char data[36];
@@ -227,15 +230,15 @@
      PX4_INFO("The main task is now started, first the initializaiton, then the baudrate set");
 
      //UART open
-     int uart = _dwm1001.uart_init(DWM1001_PORT);
+     int uart = uart_init(DWM1001_PORT);
      if(false == uart)return -1;
-     if(false == _dwm1001.set_uart_baudrate(uart)){
+     if(false == set_uart_baudrate(uart)){
              PX4_INFO("ERROR: initialization failed");
              return -1;
      }
      PX4_INFO("DWM1001 initialization succeded! This is uart: %d", uart);
 
-     if(false == _dwm1001.dwm1001_programming(uart)) {
+     if(false == dwm1001_programming(uart)) {
        PX4_INFO("ERROR: DWM1001 programming failed");
        return -1;
      }
@@ -243,21 +246,19 @@
      tcflush(uart, TCIOFLUSH);
 
      PX4_INFO("Initialization compeleted, the endless loop starts");
-     while (!dwm1001_thread_should_exit) {
+     while (!thread_should_exit) {
 
        // ADDED
-       perf_begin(_dwm1001._sample_perf);
+       perf_begin(_sample_perf);
 
-       ::read(uart, &readbuf[0], 1); // ret is the number of read values.
+       ret = ::read(uart, &readbuf[0], 1); // ret is the number of read values.
 
        printf("%c", readbuf[0]);
-
-       perf_end(_dwm1001._sample_perf);
      }
 
-     dwm1001_thread_running = false;
+     thread_running = false;
      close(uart);
-     perf_free(_dwm1001._sample_perf);
-     perf_free(_dwm1001._comms_errors);
+     perf_free(_sample_perf);
+     perf_free(_comms_errors);
      return 0;
 }
