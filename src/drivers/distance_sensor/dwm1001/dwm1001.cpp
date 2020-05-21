@@ -115,6 +115,15 @@
 
  int DWM1001::dwm1001_programming(const int _fd)
  {
+
+  /*
+  hrt_abstime time_now = hrt_absolute_time();
+  const hrt_abstime timeout_usec = time_now + 1000000; // us
+  while (time_now < timeout_usec) {
+   time_now = hrt_absolute_time();
+  }
+  */
+
   int num_bytes = 0;
   // Flush the receive buffer: data received but not read.
   tcflush(_fd, TCIFLUSH);
@@ -122,11 +131,13 @@
   num_bytes = ::write(_fd, "reset\r", 6); // \r is working, it counts as 1 char
   tcdrain(_fd);
 
+
   hrt_abstime time_now = hrt_absolute_time();
   const hrt_abstime timeout_usec = time_now + 2000000; // us
   while (time_now < timeout_usec) {
-    time_now = hrt_absolute_time();
+   time_now = hrt_absolute_time();
   }
+
 
   if(num_bytes != 6) {
     PX4_ERR("Something went wrong with writing reset!");
@@ -136,12 +147,14 @@
   num_bytes = ::write(_fd, "\r\r", 2); // \r is working
   tcdrain(_fd);
 
+
   time_now = hrt_absolute_time();
   const hrt_abstime timeout_usec_2 = time_now + 2000000; // us
   while (time_now < timeout_usec_2) {
     //PX4_INFO("time_now: %llu\ntimeout_usec: %llu", time_now, timeout_usec);
     time_now = hrt_absolute_time();
   }
+
 
   if(num_bytes != 2) {
     PX4_ERR("Something went wrong with writing enter twice!");
