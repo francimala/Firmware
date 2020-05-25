@@ -231,12 +231,13 @@
 
  int dwm1001_thread_main(int argc, char *argv[])
  {
-     int cnt = 0;
+     int cnt = 0; // counter for total bits in serial communication
      int j = 0; // counter for message bits
      int k = 0; // counter for distances
-     int reset_cnt = 0;
-     int dimension = 37;
-     int flag_init = 0;
+     int reset_cnt = 0; // coutner for reset attempt
+     int dimension = 37; // base array dimension
+     int flag_init = 0; // detector for correct initialization
+     int flag_line_read = 0;
      DWM1001 _dwm1001;
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
@@ -301,9 +302,11 @@
        // distances may change over time
        if(flag_init == 1 && readbuf[0] == '\n') {
          dimension = cnt; // Number of elements of the array (37)
+         flag_line_read = 1;
+
          // ERROR detection: if the message length is less than the minimum of
          // 37 it means the message ended before the real end
-         if(dimension < 30) {
+         if(dimension < 36) {
            PX4_INFO("ERROR: not enough data exchanged, communication problem");
            flag_init = 0; // I'm now restarting from the beginning basically.
            cnt = 0;
@@ -322,10 +325,13 @@
          }
          //printf("%d\n", dimension);
        }
+       else {
+         flag_line_read = 0;
+       }
 
        // Testing this condition we are sure about the length of the message.
        // Now the message is correctly saved inside data[], so it can be used.
-       if (cnt >= dimension && flag_init == 1) {
+       if (cnt >= dimension && flag_init == 1 && flag_line_read == 1) {
          if (reset_cnt == 0) { // being sure no error occurred
            for (int i = 0; i<dimension; i++) { // scanning all the message
              if (i >= 16 && (data[i] != ',' && data[i] != '\r')) {
@@ -341,11 +347,13 @@
                j = 0;
              }
            }
-           //printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
+
            for(int d = 0; d < 4; d++) {
              dist.distances[d] = (float)distances[d];
            }
+
            orb_publish(ORB_ID(dwm1001), dist_pub_fd, &dist);
+           printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
          }
 
          cnt = 0;
