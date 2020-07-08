@@ -32,7 +32,7 @@
  ****************************************************************************/
 #define _USE_MATH_DEFINES
 
-#include "servo_control_pixhawk.h"
+#include "camera_trig.h"
 
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/log.h>
@@ -42,10 +42,9 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/actuator_controls.h>
-#include <cmath>
 
 
-int ServoControlPixhawk::print_status()
+int CameraTrig::print_status()
 {
 	PX4_INFO("Running");
 	// TODO: print additional runtime information about the state of the module
@@ -53,7 +52,7 @@ int ServoControlPixhawk::print_status()
 	return 0;
 }
 
-int ServoControlPixhawk::custom_command(int argc, char *argv[])
+int CameraTrig::custom_command(int argc, char *argv[])
 {
         /*
         if (!is_running()) {
@@ -72,9 +71,9 @@ int ServoControlPixhawk::custom_command(int argc, char *argv[])
 }
 
 
-int ServoControlPixhawk::task_spawn(int argc, char *argv[])
+int CameraTrig::task_spawn(int argc, char *argv[])
 {
-        _task_id = px4_task_spawn_cmd("servo_control_pixhawk",
+        _task_id = px4_task_spawn_cmd("camera_trig",
 				      SCHED_DEFAULT,
 				      SCHED_PRIORITY_DEFAULT,
 				      1024,
@@ -89,7 +88,7 @@ int ServoControlPixhawk::task_spawn(int argc, char *argv[])
 	return 0;
 }
 
-ServoControlPixhawk *ServoControlPixhawk::instantiate(int argc, char *argv[])
+CameraTrig *CameraTrig::instantiate(int argc, char *argv[])
 {
 
         int example_param = 0;
@@ -105,6 +104,7 @@ ServoControlPixhawk *ServoControlPixhawk::instantiate(int argc, char *argv[])
 		switch (ch) {
 		case 'p':
 			example_param = (int)strtol(myoptarg, nullptr, 10);
+                        PX4_INFO("Something happened, %d", example_param);
 			break;
 
 		case 'f':
@@ -126,7 +126,7 @@ ServoControlPixhawk *ServoControlPixhawk::instantiate(int argc, char *argv[])
 		return nullptr;
 	}
 
-        ServoControlPixhawk *instance = new ServoControlPixhawk(example_param, example_flag);
+        CameraTrig *instance = new CameraTrig(example_param, example_flag);
 
 	if (instance == nullptr) {
 		PX4_ERR("alloc failed");
@@ -136,95 +136,60 @@ ServoControlPixhawk *ServoControlPixhawk::instantiate(int argc, char *argv[])
 
 }
 
-ServoControlPixhawk::ServoControlPixhawk(int example_param, bool example_flag)
+CameraTrig::CameraTrig(int example_param, bool example_flag)
         : ModuleParams(nullptr)
 {
+	input = (double)example_param/50;
+	//input = 0;
+	PX4_INFO("Input: %f", input);
 }
 
-void ServoControlPixhawk::run()
+void CameraTrig::run()
 {
-        // Creating an object of the class QuaternionEuler and a structure with type EulerAngles
-        QuaternionEuler etq;
-
-        int count = 0;
-
-        // Running the loop synchronized to the vehicle_attitude topic publication
-        int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
-
         // Operation needed to publish information on actuator_controls_3 topic
         struct actuator_controls_s out;
         memset(&out, 0, sizeof(out));
-        orb_advert_t out_pub = orb_advertise(ORB_ID(actuator_controls_2), &out);
+        orb_advert_t out_pub = orb_advertise(ORB_ID(actuator_controls_3), &out);
 
-        // Here we initialize the polling routine; if we need more subscriptions
-        // it is enough to add components to the array fds[] and initialize its components
-        // similarly to the vehicle_attitude one
-        px4_pollfd_struct_t fds[1];
-        fds[0].fd = vehicle_attitude_sub;
-	fds[0].events = POLLIN;
+				// initialize parameters
+				parameters_update(true);
 
-	// initialize parameters
-	parameters_update(true);
+				PX4_INFO("Entering the endless loop");
 
-	PX4_INFO("Entering the endless loop");
+				while (!should_exit()) {
 
-	while (!should_exit()) {
+					//PX4_INFO("I'm going to publish 1");
+					out.control[6] = 0.8;
+					out.control[5] = 0.8;
+					orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+					px4_sleep(2);
 
-                // wait for up to 1000ms for data
-		int pret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 1000);
+/*
+					hrt_abstime time_now = hrt_absolute_time();
+					const hrt_abstime timeout_usec = time_now + 5000000; // us
+					while (time_now < timeout_usec) {
+						time_now = hrt_absolute_time();
+					}
+*/
 
-		if (pret == 0) {
-			// Timeout: let the loop run anyway, don't do `continue` here
+					//PX4_INFO("I'm going to publish 0");
+					out.control[6] = 0;
+					out.control[5] = 0;
+					orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+				  px4_sleep(2);
 
-		} else if (pret < 0) {
-			// this is undesirable but not much we can do
-			PX4_ERR("poll error %d, %d", pret, errno);
-			px4_usleep(50000);
-			continue;
-
-		} else if (fds[0].revents & POLLIN) {
-
-                        QuaternionEuler::Quaternion q1;
-                        QuaternionEuler::EulerAngles ea1;
-
-                        struct vehicle_attitude_s vehicle_attitude;
-                        orb_copy(ORB_ID(vehicle_attitude), vehicle_attitude_sub, &vehicle_attitude);
-
-                        // Converting quaternion to roll, pitch, yaw
-                        q1.w = vehicle_attitude.q[0];
-                        q1.x = vehicle_attitude.q[1];
-                        q1.y = vehicle_attitude.q[2];
-                        q1.z = vehicle_attitude.q[3];
-
-                        ea1 = etq.QuaternionToEuler(q1); // radiants
-
-                        // Now we wait for N cycles before making the comparison
-                        if (count >= 10) {
-
-                            out.control[1] = -ea1.pitch*180/3.1416/50;
-                            //out.control[0] = -ea1.roll*180/3.1416/60;
-                            orb_publish(ORB_ID(actuator_controls_2), out_pub, &out);
-
-														if(count >= 500) {
-															PX4_INFO("Attitude --> Roll: %f, Pitch: %f, Yaw: %f", ea1.roll*180/3.1416, ea1.pitch*180/3.1416, ea1.yaw*180/3.1416);
-	                            PX4_INFO("Control --> Roll: %f, Pitch: %f, Yaw: %f",ea1.roll*180/3.1416/60, ea1.pitch*180/3.1416/180, ea1.yaw*180/3.1416);
-														}
-
-                            count = 0;
-                        }
-
-                        count = count+1;
-                        //PX4_INFO("%d",count);
-
+					//PX4_INFO("I'm going to publish -1");
+					out.control[6] = -0.8;
+					out.control[5] = -0.8;
+					orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+				  px4_sleep(2);
 		}
 
 		parameters_update();
-	}
-
-        orb_unsubscribe(vehicle_attitude_sub);
 }
 
-void ServoControlPixhawk::parameters_update(bool force)
+
+void CameraTrig::parameters_update(bool force)
 {
 	// check for parameter updates
 	if (_parameter_update_sub.updated() || force) {
@@ -237,7 +202,7 @@ void ServoControlPixhawk::parameters_update(bool force)
 	}
 }
 
-int ServoControlPixhawk::print_usage(const char *reason)
+int CameraTrig::print_usage(const char *reason)
 {
 	if (reason) {
 		PX4_WARN("%s\n", reason);
@@ -259,7 +224,7 @@ $ module start -f -p 42
 
 )DESCR_STR");
 
-        PRINT_MODULE_USAGE_NAME("servo_control_pixhawk", "template");
+        PRINT_MODULE_USAGE_NAME("camera_trig", "template");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_FLAG('f', "Optional example flag", true);
 	PRINT_MODULE_USAGE_PARAM_INT('p', 0, 0, 1000, "Optional example parameter", true);
@@ -267,32 +232,8 @@ $ module start -f -p 42
 
 	return 0;
 }
-/*
-QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
-    QuaternionEuler::EulerAngles angles;
 
-    // roll (x-axis rotation)
-    double sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
-    double cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
-    angles.roll = std::atan2(sinr_cosp, cosr_cosp);
-
-    // pitch (y-axis rotation)
-    double sinp = 2 * (q.w * q.y - q.z * q.x);
-    if (std::abs(sinp) >= 1)
-        angles.pitch = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-    else
-        angles.pitch = std::asin(sinp);
-
-    // yaw (z-axis rotation)
-    double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
-    double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
-    angles.yaw = std::atan2(siny_cosp, cosy_cosp);
-
-    return angles;
-}
-*/
-
-int servo_control_pixhawk_main(int argc, char *argv[])
+int camera_trig_main(int argc, char *argv[])
 {
-        return ServoControlPixhawk::main(argc, argv);
+        return CameraTrig::main(argc, argv);
 }

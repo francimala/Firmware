@@ -39,7 +39,7 @@
 #include <uORB/Publication.hpp>
 #include <uORB/topics/parameter_update.h>
 #include <stdlib.h>
-#include <servo_control/servo_control.h>
+#include <servo_control/quaternion_euler.h>
 
 extern "C" __EXPORT int servo_control_pixhawk_main(int argc, char *argv[]);
 
@@ -88,20 +88,3 @@ private:
 	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
 
 };
-
-/*
-class QuaternionEuler
-{
-public:
-	struct Quaternion {
-    	double w, x, y, z;
-	};
-
-	struct EulerAngles {
-    	double roll, pitch, yaw;
-	};
-
-	EulerAngles QuaternionToEuler(Quaternion q);
-
-};
-*/

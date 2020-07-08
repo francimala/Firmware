@@ -52,6 +52,8 @@ px4_add_board(
 		module # Added by Francesco Malacarne
 		servo_control # Added by Francesco Malacarne
 		servo_control_pixhawk # Added by Francesco Malacarne
+		camera_trig
+		rc_input_simulation
 
 	SYSTEMCMDS
 		#config

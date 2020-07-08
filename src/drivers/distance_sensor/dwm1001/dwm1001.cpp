@@ -238,12 +238,19 @@
      int dimension = 37; // base array dimension
      int flag_init = 0; // detector for correct initialization
      int flag_line_read = 0;
+     int flag_firts_run = 0;
      DWM1001 _dwm1001;
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
      char data[46];
      char distances_char[5];
      double distances[4];
+     double previous_distances[4];
+     double sum = 0;
+
+     for (int g = 0; g < 4; g++) {
+       previous_distances[g] = 0;
+     }
 
      PX4_INFO("The main task is now started, first the initializaiton, then the baudrate set");
 
@@ -352,8 +359,32 @@
              dist.distances[d] = (float)distances[d];
            }
 
-           orb_publish(ORB_ID(dwm1001), dist_pub_fd, &dist);
-           printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
+           for (int z = 0; z < 4; z++) {
+             sum = sum + (distances[z] - previous_distances[z])*(distances[z] - previous_distances[z]);
+             previous_distances[z] = distances[z];
+           }
+
+           if (sqrt(sum) <= 2 || flag_firts_run == 0) {
+             orb_publish(ORB_ID(dwm1001), dist_pub_fd, &dist);
+             printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
+             sum = 0;
+             flag_firts_run = 1;
+           }
+           else {
+             flag_init = 0; // I'm now restarting from the beginning basically.
+             flag_firts_run = 0;
+             cnt = 0;
+             dimension = 39; // with 37 it works
+             k = 0;
+             j = 0;
+             reset_cnt++; // We need to count the reset attempts
+             if(false == _dwm1001.dwm1001_programming(uart)) {
+               PX4_INFO("ERROR: I reprogrammed DWM1001 but I failed");
+               return -1;
+             }
+             sum = 0;
+           }
+
          }
 
          cnt = 0;

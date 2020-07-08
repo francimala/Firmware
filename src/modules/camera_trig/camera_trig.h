@@ -38,27 +38,27 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/parameter_update.h>
-#include "quaternion_euler.h"
+#include <drivers/drv_hrt.h>
+#include <lib/perf/perf_counter.h>
 #include <stdlib.h>
 #include <cmath>
 
-extern "C" __EXPORT int servo_control_main(int argc, char *argv[]);
+extern "C" __EXPORT int camera_trig_main(int argc, char *argv[]);
 
-class ServoControl : public ModuleBase<ServoControl>, public ModuleParams
+class CameraTrig : public ModuleBase<CameraTrig>, public ModuleParams
 {
 public:
-	double keyboard_input;
-	double radio_input = 0;
+	double input;
 
-	ServoControl(int example_param, bool example_flag);
+	CameraTrig(int example_param, bool example_flag);
 
-	virtual ~ServoControl() = default;
+	virtual ~CameraTrig() = default;
 
 	/** @see ModuleBase */
 	static int task_spawn(int argc, char *argv[]);
 
 	/** @see ModuleBase */
-	static ServoControl *instantiate(int argc, char *argv[]);
+	static CameraTrig *instantiate(int argc, char *argv[]);
 
 	/** @see ModuleBase */
 	static int custom_command(int argc, char *argv[]);

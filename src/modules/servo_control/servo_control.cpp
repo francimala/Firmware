@@ -42,6 +42,7 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/input_rc.h>
 
 
 int ServoControl::print_status()
@@ -139,9 +140,9 @@ ServoControl *ServoControl::instantiate(int argc, char *argv[])
 ServoControl::ServoControl(int example_param, bool example_flag)
         : ModuleParams(nullptr)
 {
-	input = (double)example_param/50;
-	//input = 0;
-	PX4_INFO("Input: %f", input);
+	keyboard_input = (double)example_param/50;
+	//keyboard_input = 0;
+	PX4_INFO("Input: %f", keyboard_input);
 }
 
 void ServoControl::run()
@@ -150,9 +151,11 @@ void ServoControl::run()
         QuaternionEuler etq;
 
         int count = 0;
+				int count2 = 0;
 
         // Running the loop synchronized to the vehicle_attitude topic publication
         int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+				int input_rc_sub = orb_subscribe(ORB_ID(input_rc));
 
         // Operation needed to publish information on actuator_controls_3 topic
         struct actuator_controls_s out;
@@ -162,9 +165,11 @@ void ServoControl::run()
         // Here we initialize the polling routine; if we need more subscriptions
         // it is enough to add components to the array fds[] and initialize its components
         // similarly to the vehicle_attitude one
-        px4_pollfd_struct_t fds[1];
+        px4_pollfd_struct_t fds[2];
         fds[0].fd = vehicle_attitude_sub;
 				fds[0].events = POLLIN;
+				fds[1].fd = input_rc_sub;
+				fds[1].events = POLLIN;
 
 				// initialize parameters
 				parameters_update(true);
@@ -173,6 +178,7 @@ void ServoControl::run()
 
 								// wait for up to 1000ms for data
 								int pret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 1000);
+								int pret2 = px4_poll(fds, (sizeof(fds) / sizeof(fds[1])), 1000);
 
 								if (pret == 0) {
 									// Timeout: let the loop run anyway, don't do `continue` here
@@ -183,7 +189,7 @@ void ServoControl::run()
 									px4_usleep(50000);
 									continue;
 
-								} else if (fds[0].revents & POLLIN) {
+								} else if ((fds[0].revents & POLLIN)) {
 
 										QuaternionEuler::Quaternion q1;
                     QuaternionEuler::EulerAngles ea1;
@@ -202,11 +208,20 @@ void ServoControl::run()
                         // Now we wait for N cycles before making the comparison
                         if (count >= 10) {
 
-                            out.control[5] = -ea1.pitch*180/3.1416/50 + input;
+													  count2++;
+
+                            out.control[5] = -ea1.pitch*180/3.1416/50 + keyboard_input + radio_input;
+														//out.control[6] = -ea1.pitch*180/3.1416/50 + keyboard_input; // added
                             orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
 
+														if(count2 > 50) {
+															//PX4_INFO("Radio input: %f", radio_input);
+															//PX4_INFO("Pitch contribution: %f", -ea1.pitch*180/3.1416/50);
+															count2 = 0;
+														}
+
 														if (count >= 500) {
-															PX4_INFO("We are in the cycle, %f", ServoControl::input);
+															PX4_INFO("We are in the cycle, %f", ServoControl::keyboard_input);
 	                            PX4_INFO("Attitude --> Roll: %f, Pitch: %f, Yaw: %f", ea1.roll*180/3.1416, ea1.pitch*180/3.1416, ea1.yaw*180/3.1416);
 	                            PX4_INFO("Control --> Roll: %f, Pitch: %f, Yaw: %f",ea1.roll*180/3.1416/60, ea1.pitch*180/3.1416/180, ea1.yaw*180/3.1416);
 														}
@@ -217,11 +232,34 @@ void ServoControl::run()
 												count = count +1;
 												//PX4_INFO("%d",count);
 		}
+		if (pret2 == 0) {
+			// Timeout: let the loop run anyway, don't do `continue` here
+
+		} else if (pret2 < 0) {
+			// this is undesirable but not much we can do
+			PX4_ERR("poll error %d, %d", pret, errno);
+			px4_usleep(50000);
+			continue;
+
+		} else if ((fds[1].revents & POLLIN)) {
+
+			struct input_rc_s input_rc;
+			orb_copy(ORB_ID(input_rc), input_rc_sub, &input_rc);
+
+			radio_input = (double)(input_rc.values[6]-1500)/500;
+			//printf("Radio input: %f\n",radio_input);
+			//printf("Topic value: %d\n",input_rc.values[6]);
+
+			if(radio_input < -1 || radio_input > 1) {
+				radio_input = 0;
+			}
+		}
 
 		parameters_update();
 	}
 
         orb_unsubscribe(vehicle_attitude_sub);
+				orb_unsubscribe(input_rc_sub);
 }
 
 void ServoControl::parameters_update(bool force)

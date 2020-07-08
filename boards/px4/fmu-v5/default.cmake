@@ -90,6 +90,9 @@ px4_add_board(
 		vtol_att_control
 		servo_control
 		servo_control_pixhawk
+		camera_trig
+		rc_input_simulation
+		
 	SYSTEMCMDS
 		bl_update
 		config

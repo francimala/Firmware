@@ -31,63 +31,17 @@
  *
  ****************************************************************************/
 
-#pragma once
-
-#include <px4_platform_common/module.h>
-#include <px4_platform_common/module_params.h>
-#include <uORB/Subscription.hpp>
-#include <uORB/Publication.hpp>
-#include <uORB/topics/parameter_update.h>
-#include "quaternion_euler.h"
-#include <stdlib.h>
-#include <cmath>
-
-extern "C" __EXPORT int servo_control_main(int argc, char *argv[]);
-
-class ServoControl : public ModuleBase<ServoControl>, public ModuleParams
+class QuaternionEuler
 {
 public:
-	double keyboard_input;
-	double radio_input = 0;
+	struct Quaternion {
+    	double w, x, y, z;
+	};
 
-	ServoControl(int example_param, bool example_flag);
+	struct EulerAngles {
+    	double roll, pitch, yaw;
+	};
 
-	virtual ~ServoControl() = default;
-
-	/** @see ModuleBase */
-	static int task_spawn(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static ServoControl *instantiate(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static int custom_command(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static int print_usage(const char *reason = nullptr);
-
-	/** @see ModuleBase::run() */
-	void run() override;
-
-	/** @see ModuleBase::print_status() */
-	int print_status() override;
-
-private:
-
-	/**
-	 * Check for parameter changes and update them if needed.
-	 * @param parameter_update_sub uorb subscription to parameter_update
-	 * @param force for a parameter update
-	 */
-	void parameters_update(bool force = false);
-
-
-	DEFINE_PARAMETERS(
-		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,   /**< example parameter */
-		(ParamInt<px4::params::SYS_AUTOCONFIG>) _param_sys_autoconfig  /**< another parameter */
-	)
-
-	// Subscriptions
-	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
+	EulerAngles QuaternionToEuler(Quaternion q);
 
 };
