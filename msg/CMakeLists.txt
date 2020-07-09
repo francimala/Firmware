@@ -56,6 +56,7 @@ set(msg_files
 	differential_pressure.msg
 	distance_sensor.msg
 	dwm1001.msg
+	dwm1001_raw.msg
 	ekf2_timestamps.msg
 	ekf_gps_drift.msg
 	ekf_gps_position.msg

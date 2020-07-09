@@ -242,11 +242,13 @@
      DWM1001 _dwm1001;
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
-     char data[46];
+     char data[100];
      char distances_char[5];
      double distances[4];
      double previous_distances[4];
      double sum = 0;
+     int anchor_number = 0;
+     char anchor_number_char[1];
 
      for (int g = 0; g < 4; g++) {
        previous_distances[g] = 0;
@@ -258,6 +260,11 @@
      struct dwm1001_s dist;
      memset(&dist, 0, sizeof(dist));
      orb_advert_t dist_pub_fd = orb_advertise(ORB_ID(dwm1001), &dist);
+
+     struct dwm1001_raw_s raw_message;
+     memset(&raw_message, 0, sizeof(raw_message));
+     orb_advert_t raw_message_pub_fd = orb_advertise(ORB_ID(dwm1001_raw), &raw_message);
+
 
      //UART open
      int uart = _dwm1001.uart_init(DWM1001_PORT);
@@ -339,12 +346,25 @@
        // Testing this condition we are sure about the length of the message.
        // Now the message is correctly saved inside data[], so it can be used.
        if (cnt >= dimension && flag_init == 1 && flag_line_read == 1) {
+
          if (reset_cnt == 0) { // being sure no error occurred
-           for (int i = 0; i<dimension; i++) { // scanning all the message
+
+           anchor_number_char[0] = data[5];
+           anchor_number = atoi(anchor_number_char); // saving the number of detected anchors
+
+           for (int v = 0; v < 99; v++) {
+             raw_message.raw_message[v] = data[v];
+           }
+           orb_publish(ORB_ID(dwm1001_raw), raw_message_pub_fd, &raw_message);
+
+           // scanning all the message
+           for (int i = 0; i<dimension; i++) {
+
              if (i >= 16 && (data[i] != ',' && data[i] != '\r')) {
                distances_char[j] = data[i];
                j++;
              }
+
              else if (i >= 16 && (data[i] == ',' || data[i] == '\r')) {
                distances[k] = atof(distances_char);
                k++;
@@ -358,6 +378,7 @@
            for(int d = 0; d < 4; d++) {
              dist.distances[d] = (float)distances[d];
            }
+           dist.anchor_num = (int)anchor_number;
 
            for (int z = 0; z < 4; z++) {
              sum = sum + (distances[z] - previous_distances[z])*(distances[z] - previous_distances[z]);
