@@ -92,6 +92,7 @@ px4_add_board(
 		servo_control_pixhawk
 		camera_trig
 		rc_input_simulation
+		module
 		
 	SYSTEMCMDS
 		bl_update

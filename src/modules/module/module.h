@@ -35,10 +35,17 @@
 
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/getopt.h>
+#include <px4_platform_common/log.h>
+#include <px4_platform_common/posix.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/parameter_update.h>
 #include <stdlib.h>
+#include <uORB/topics/dwm1001.h>
+#include <uORB/topics/dwm1001_raw.h>
+#include <uORB/topics/parameter_update.h>
+#include <cmath>
 
 extern "C" __EXPORT int module_main(int argc, char *argv[]);
 
@@ -86,13 +93,5 @@ private:
 	// Subscriptions
 	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
 
-};
-
-struct Quaternion {
-    double w, x, y, z;
-};
-
-struct EulerAngles {
-    double roll, pitch, yaw;
 };
 

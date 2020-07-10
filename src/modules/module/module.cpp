@@ -34,19 +34,6 @@
 
 #include "module.h"
 
-#include <px4_platform_common/getopt.h>
-#include <px4_platform_common/log.h>
-#include <px4_platform_common/posix.h>
-
-#include <uORB/topics/parameter_update.h>
-#include <uORB/topics/vehicle_attitude.h>
-#include <uORB/topics/actuator_outputs.h>
-#include <uORB/topics/actuator_controls.h>
-#include <cmath>
-//#include <math.h>
-
-EulerAngles ToEulerAngles2(Quaternion q);
-
 int Module::print_status()
 {
 	PX4_INFO("Running");
@@ -62,7 +49,6 @@ int Module::custom_command(int argc, char *argv[])
 		print_usage("not running");
 		return 1;
 	}
-
 	// additional custom commands can be handled like this:
 	if (!strcmp(argv[0], "do-something")) {
 		get_instance()->do_something();
@@ -143,19 +129,12 @@ Module::Module(int example_param, bool example_flag)
 
 void Module::run()
 {
-        struct EulerAngles ea0;
-        ea0.roll = 0;
-        ea0.pitch = 0;
-        ea0.yaw = 0;
-        // Example: run the loop synchronized to the sensor_combined topic publication
-        int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
-
-        struct actuator_controls_s out;
-        memset(&out, 0, sizeof(out));
-        orb_advert_t out_pub = orb_advertise(ORB_ID(actuator_controls_3), &out);
+	// Example: run the loop synchronized to the dwm1001 topic publication
+	int dwm1001_sub = orb_subscribe(ORB_ID(dwm1001));
+	double print_value[6];
 
 	px4_pollfd_struct_t fds[1];
-        fds[0].fd = vehicle_attitude_sub;
+	fds[0].fd = dwm1001_sub;
 	fds[0].events = POLLIN;
 
 	// initialize parameters
@@ -163,7 +142,7 @@ void Module::run()
 
 	while (!should_exit()) {
 
-                // wait for up to 1000ms for data
+		// wait for up to 1000ms for data
 		int pret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 1000);
 
 		if (pret == 0) {
@@ -177,37 +156,25 @@ void Module::run()
 
 		} else if (fds[0].revents & POLLIN) {
 
-                        struct Quaternion q1;
-                        struct EulerAngles ea1;
-                        //struct EulerAngles delta_ea;
-                        struct vehicle_attitude_s vehicle_attitude;
-                        orb_copy(ORB_ID(vehicle_attitude), vehicle_attitude_sub, &vehicle_attitude);
+			struct dwm1001_s dwm1001;
+			orb_copy(ORB_ID(dwm1001), dwm1001_sub, &dwm1001);
 
-                        // Converting quaternion to roll, pitch, yaw
-                        q1.w = vehicle_attitude.q[0];
-                        q1.x = vehicle_attitude.q[1];
-                        q1.y = vehicle_attitude.q[2];
-                        q1.z = vehicle_attitude.q[3];
+			printf("First 6 distances read from topic dwm1001: ");
 
-                        ea1 = ToEulerAngles2(q1);
-                        //delta_ea.pitch = abs(abs(ea1.pitch)-abs(ea0.pitch))*180/3.1416;
-                        ea0 = ea1;
+			for(int i = 0; i < 6; i++) {
+				print_value[i] = (double) dwm1001.distances[i];
+				printf("%f ", print_value[i]);
+			}
+			printf("\n");
 
-                        //if (delta_ea.pitch > 0.02) {
-                            PX4_INFO("%f", ea1.pitch);
-                        //}
-
-                        // Publishing PWM output
-                        out.control[5] = 1;
-                        orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
-                        //PX4_INFO("Published");
+			px4_sleep(1);
 
 		}
 
 		parameters_update();
 	}
 
-        orb_unsubscribe(vehicle_attitude_sub);
+	orb_unsubscribe(dwm1001_sub);
 }
 
 void Module::parameters_update(bool force)
@@ -233,16 +200,12 @@ int Module::print_usage(const char *reason)
 		R"DESCR_STR(
 ### Description
 Section that describes the provided module functionality.
-
 This is a template for a module running as a task in the background with start/stop/status functionality.
-
 ### Implementation
 Section describing the high-level implementation of this module.
-
 ### Examples
 CLI usage example:
 $ module start -f -p 42
-
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("module", "template");
@@ -252,31 +215,6 @@ $ module start -f -p 42
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
 	return 0;
-}
-
-EulerAngles ToEulerAngles2(Quaternion q) {
-    using namespace std;
-    EulerAngles angles;
-
-    // roll (x-axis rotation)
-    double sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
-    double cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
-    angles.roll = std::atan2(sinr_cosp, cosr_cosp);
-
-    // pitch (y-axis rotation)
-    double sinp = 2 * (q.w * q.y - q.z * q.x);
-    if (std::abs(sinp) >= 1)
-        //angles.pitch = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-        angles.pitch = std::asin(sinp);
-    else
-        angles.pitch = std::asin(sinp);
-
-    // yaw (z-axis rotation)
-    double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
-    double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
-    angles.yaw = std::atan2(siny_cosp, cosy_cosp);
-
-    return angles;
 }
 
 int module_main(int argc, char *argv[])

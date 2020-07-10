@@ -232,27 +232,35 @@
  int dwm1001_thread_main(int argc, char *argv[])
  {
      int cnt = 0; // counter for total bits in serial communication
+     int comma_counter = 0; // counter for commas into the message
+     int total_comma = 0; // checking the number of commas before parsing the message
      int j = 0; // counter for message bits
      int k = 0; // counter for distances
+     int f = 0; // counter for positions
+     int g = 0; // counter for message bits (positions)
      int reset_cnt = 0; // coutner for reset attempt
-     int dimension = 37; // base array dimension
+     int dimension = 200; // base array dimension
      int flag_init = 0; // detector for correct initialization
      int flag_line_read = 0;
-     int flag_firts_run = 0;
+     //int flag_firts_run = 0;
      DWM1001 _dwm1001;
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
-     char data[100];
+     char data[100]; // this should be big enough to contain everything
      char distances_char[5];
-     double distances[4];
-     double previous_distances[4];
-     double sum = 0;
+     double distances[98];
+     char positions_char[5];
+     double positions[4];
+     //double previous_distances[4];
+     //double sum = 0;
      int anchor_number = 0;
-     char anchor_number_char[1];
+     char anchor_number_char[2];
+     int anchor_elements = 0;
+     int pos_detected = 0;
 
-     for (int g = 0; g < 4; g++) {
+    /* for (int g = 0; g < 4; g++) {
        previous_distances[g] = 0;
-     }
+     } */
 
      PX4_INFO("The main task is now started, first the initializaiton, then the baudrate set");
 
@@ -324,7 +332,7 @@
            PX4_INFO("ERROR: not enough data exchanged, communication problem");
            flag_init = 0; // I'm now restarting from the beginning basically.
            cnt = 0;
-           dimension = 39; // with 37 it works
+           dimension = 200; // with 37 it works
            k = 0;
            j = 0;
            reset_cnt++; // We need to count the reset attempts
@@ -344,37 +352,125 @@
        }
 
        // Testing this condition we are sure about the length of the message.
-       // Now the message is correctly saved inside data[], so it can be used.
+       // Now the message is correctly saved inside data[], so it can be parsed.
        if (cnt >= dimension && flag_init == 1 && flag_line_read == 1) {
 
          if (reset_cnt == 0) { // being sure no error occurred
 
-           anchor_number_char[0] = data[5];
+           // Here we are checking the number of anchors being detected
+           for (int a = 0; a < 2; a++) {
+             if(data[a+5] != ',') {
+               anchor_number_char[a] = data[a+5];
+             }
+             else {
+               anchor_number_char[a] = '\n';
+               a = 2;
+             }
+           }
+
            anchor_number = atoi(anchor_number_char); // saving the number of detected anchors
 
-           for (int v = 0; v < 99; v++) {
+           // Here we are publishing the raw message on a specific topic
+           // (this could be useful for further development)
+           for (int v = 0; v < 100; v++) {
              raw_message.raw_message[v] = data[v];
            }
            orb_publish(ORB_ID(dwm1001_raw), raw_message_pub_fd, &raw_message);
 
-           // scanning all the message
-           for (int i = 0; i<dimension; i++) {
+          // Here we enter into the actual parsing of the read data.
+          if (anchor_number > 0) {
 
-             if (i >= 16 && (data[i] != ',' && data[i] != '\r')) {
-               distances_char[j] = data[i];
-               j++;
-             }
+            anchor_elements = 0;
 
-             else if (i >= 16 && (data[i] == ',' || data[i] == '\r')) {
-               distances[k] = atof(distances_char);
-               k++;
-               if(k>3) {
-                 k = 0;
+            // Checking the total number of commas before parsing the message
+            total_comma = 0;
+            for (int p = 0; p<dimension; p++) {
+              if (data[p] == ',') {
+                total_comma++;
+              }
+            }
+
+             // scanning all the message
+             for (int i = 0; i<dimension; i++) {
+
+               if (data[i] == ',') {
+                 comma_counter++;
                }
-               j = 0;
-             }
+
+               // Scanning all the measurements
+               if (comma_counter >= (4+6*anchor_elements) && comma_counter <= (7+6*anchor_elements) && pos_detected == 0) {
+                 if (data[i+1] != ',' && data[i+1] != '\r') {
+                   distances_char[j] = data[i+1];
+                   j++;
+                 }
+
+                 else if (data[i+1] == ',' || data[i+1] == '\r') {
+                   distances[k] = atof(distances_char);
+                   k++;
+                   if(k > (4*anchor_number-1)) {
+                     k = 0;
+                   }
+                   j = 0;
+                 }
+               }
+
+               if (comma_counter == (7+6*anchor_elements) && comma_counter <= 7+6*(anchor_number-1) && j == 0) {
+                 anchor_elements++;
+               }
+
+               if (total_comma > 7+6*(anchor_number-1) && comma_counter >= 7+6*(anchor_number-1)+2) {
+                 pos_detected = 1;
+
+                 // Working on the position of the TAG wrt the anchors
+                 if (data[i+1] != ',' && data[i+1] != '\r') {
+                   positions_char[f] = data[i+1];
+                   f++;
+                 }
+
+                 else if (data[i+1] == ',' || data[i+1] == '\r') {
+                   positions[g] = atof(positions_char);
+                   g++;
+                   if(g > 3) {
+                     g = 0;
+                   }
+                   f = 0;
+                 }
+               }
+
+               if (data[i] == '\r') {
+                 comma_counter = 0;
+                 pos_detected = 0;
+                 anchor_elements = 0;
+                 //total_comma = 0;
+               }
+            }
+
+            /*for(int d = 0; d < 100; d++) {
+              dist.distances[d] = 0;
+            }*/
+            for(int b = 0; b < (4*anchor_number); b++) {
+              dist.distances[b] = (float)distances[b];
+            }
+
+            if(total_comma > 7+6*(anchor_number-1)) {
+              for(int c = 0; c < 4; c++) {
+                dist.positions[c] = (float)positions[c];
+              }
+            }
+
+            dist.anchor_num = (int)anchor_number;
+
+            orb_publish(ORB_ID(dwm1001), dist_pub_fd, &dist);
+            //printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
+          }
+
+           else {
+             PX4_INFO("No anchor detected");
            }
 
+
+
+/*
            for(int d = 0; d < 4; d++) {
              dist.distances[d] = (float)distances[d];
            }
@@ -395,7 +491,7 @@
              flag_init = 0; // I'm now restarting from the beginning basically.
              flag_firts_run = 0;
              cnt = 0;
-             dimension = 39; // with 37 it works
+             dimension = 200; // with 37 it works
              k = 0;
              j = 0;
              reset_cnt++; // We need to count the reset attempts
@@ -405,22 +501,13 @@
              }
              sum = 0;
            }
+           */
 
          }
 
          cnt = 0;
          reset_cnt = 0;
        }
-
-
-/*
-       if (cnt >= dimension && flag_init == 1) {
-         printf("%c%c%c%c\n", data[31], data[32], data[33], data[34]);
-         cnt = 0;
-         reset_cnt = 0;
-       }
-*/
-
 
        perf_end(_dwm1001._sample_perf);
      }

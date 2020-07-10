@@ -70,9 +70,13 @@
  #include <uORB/Publication.hpp>
  #include <uORB/topics/parameter_update.h>
  #include <uORB/topics/dwm1001.h>
-#include <uORB/topics/dwm1001_raw.h>
+ #include <uORB/topics/dwm1001_raw.h>
 
  #define DWM1001_PORT	"/dev/ttyS2" // see https://github.com/PX4/px4_user_guide/issues/417
+
+ #ifdef NAN
+ /* NAN is supported */
+ #endif
 
  extern "C" __EXPORT int dwm1001_main(int argc, char *argv[]);
 
