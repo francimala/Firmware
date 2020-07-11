@@ -248,16 +248,18 @@
      int readlen = 10; // how many characters do I want to read? This value must be >= 36
      char readbuf[readlen-1];
      char data[500]; // this should be big enough to contain everything
-     char distances_char[5];
+     char distances_char[6];
      double distances[98];
-     char positions_char[5];
+     char positions_char[6];
      double positions[4];
      //double previous_distances[4];
      //double sum = 0;
      int anchor_number = 0;
      char anchor_number_char[2];
      int anchor_elements = 0;
-     int pos_detected = 0;
+     int scanning_pos = 0;
+     bool pos_detected = false;
+     bool raw_topic_publication = false;
 
     /* for (int g = 0; g < 4; g++) {
        previous_distances[g] = 0;
@@ -373,10 +375,20 @@
 
            // Here we are publishing the raw message on a specific topic
            // (this could be useful for further development)
-           for (int v = 0; v < 140; v++) {
-             raw_message.raw_message[v] = data[v];
+           if (raw_topic_publication) {
+             for (int v = 0; v < 140; v++) {
+               raw_message.raw_message[v] = data[v];
+             }
+             orb_publish(ORB_ID(dwm1001_raw), raw_message_pub_fd, &raw_message);
            }
-           orb_publish(ORB_ID(dwm1001_raw), raw_message_pub_fd, &raw_message);
+
+           // Clearing all DATA
+           for (int h = 0; h < 98; h++) {
+             dist.distances[h] = 0;
+           }
+           for (int h = 0; h < 4; h++) {
+             dist.positions[h] = 0;
+           }
 
           // Here we enter into the actual parsing of the read data.
           if (anchor_number > 0) {
@@ -391,6 +403,15 @@
               }
             }
 
+            if (total_comma > 7+6*(anchor_number-1)) {
+              pos_detected = true;
+            }
+            else {
+              pos_detected = false;
+            }
+
+            dist.pos_detected = pos_detected;
+
              // scanning all the message
              for (int i = 0; i<dimension; i++) {
 
@@ -399,7 +420,7 @@
                }
 
                // Scanning all the measurements
-               if (comma_counter >= (4+6*anchor_elements) && comma_counter <= (7+6*anchor_elements) && pos_detected == 0) {
+               if (comma_counter >= (4+6*anchor_elements) && comma_counter <= (7+6*anchor_elements) && scanning_pos == 0) {
                  if (data[i+1] != ',' && data[i+1] != '\r') {
                    distances_char[j] = data[i+1];
                    j++;
@@ -418,6 +439,11 @@
                      anchor_elements++;
                    }
                    j = 0;
+
+                   // reset the distances_char array
+                   for (int o = 0; o < 6; o++) {
+                     distances_char[o] = 0;
+                   }
                  }
                }
 
@@ -428,7 +454,7 @@
                */
 
                if (total_comma == (7+6*(anchor_number-1)+5) && comma_counter >= 7+6*(anchor_number-1)+2) {
-                 pos_detected = 1;
+                 scanning_pos = 1;
 
                  // Working on the position of the TAG wrt the anchors
                  if (data[i+1] != ',' && data[i+1] != '\r' && data[i+1] != '\n') {
@@ -443,7 +469,7 @@
                      g = 0;
                    }
                    f = 0;
-                   for (int r = 0; r < 5; r++) {
+                   for (int r = 0; r < 6; r++) {
                      positions_char[r] = '\n';
                    }
                  }
@@ -452,7 +478,7 @@
 
                if (data[i+1] == '\r') {
                  comma_counter = 0;
-                 pos_detected = 0;
+                 scanning_pos = 0;
                  anchor_elements = 0;
                  i = dimension;
                  //total_comma = 0;
