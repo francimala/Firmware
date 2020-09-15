@@ -39,6 +39,7 @@
 
 #include "rc_update.h"
 
+
 using namespace time_literals;
 
 namespace RCUpdate
@@ -340,6 +341,12 @@ RCUpdate::Run()
 
 	/* read low-level values from FMU or IO RC inputs (PPM, Spektrum, S.Bus) */
 	input_rc_s rc_input;
+	// subscribing to stabilization topic
+	int camera_stabilization_input_sub = orb_subscribe(ORB_ID(camera_stabilization_input));
+
+	px4_pollfd_struct_t fds[1];
+	fds[0].fd = camera_stabilization_input_sub;
+	fds[0].events = POLLIN;
 
 	if (_input_rc_sub.copy(&rc_input)) {
 
@@ -546,8 +553,26 @@ RCUpdate::Run()
 			/* publish manual_control_setpoint topic */
 			_manual_control_pub.publish(manual);
 
+			int pret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 1000);
+			if (pret == 0) {
+				// Timeout: let the loop run anyway, don't do `continue` here
+
+			} else if (pret < 0) {
+				// this is undesirable but not much we can do
+				PX4_ERR("poll error %d, %d", pret, errno);
+				px4_usleep(50000);
+				//continue;
+
+			} else if ((fds[0].revents & POLLIN)) {
+					struct camera_stabilization_input_s camera_stabilization_input;
+					orb_copy(ORB_ID(camera_stabilization_input), camera_stabilization_input_sub, &camera_stabilization_input);
+					stabilization_input = camera_stabilization_input.camera_stabilization_input;
+					//PX4_INFO("Stabilization input: %f", (double)stabilization_input);
+			}
+
 			/* copy from mapped manual control to control group 3 */
-			actuator_controls_rc_s actuator_group_3;
+			actuator_controls_s actuator_group_3{};
+			PX4_INFO("Stabilization input: %f", (double)stabilization_input);
 
 			actuator_group_3.timestamp = rc_input.timestamp_last_signal;
 
@@ -556,7 +581,7 @@ RCUpdate::Run()
 			actuator_group_3.control[2] = manual.r;
 			actuator_group_3.control[3] = manual.z;
 			actuator_group_3.control[4] = manual.flaps;
-			actuator_group_3.control[5] = manual.aux1;
+			actuator_group_3.control[5] = manual.aux1 + stabilization_input;
 			actuator_group_3.control[6] = manual.aux2;
 			actuator_group_3.control[7] = manual.aux3;
 

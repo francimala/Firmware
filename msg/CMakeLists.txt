@@ -37,12 +37,14 @@ cmake_policy(SET CMP0057 NEW)
 set(msg_files
 	actuator_armed.msg
 	actuator_controls.msg
+	actuator_controls_rc.msg
 	actuator_outputs.msg
 	adc_report.msg
 	airspeed.msg
 	airspeed_validated.msg
 	battery_status.msg
 	camera_capture.msg
+	camera_stabilization_input.msg
 	camera_trigger.msg
 	cellular_status.msg
 	collision_constraints.msg

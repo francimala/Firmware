@@ -42,7 +42,6 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/actuator_controls.h>
-#include <uORB/topics/actuator_controls_rc.h>
 #include <uORB/topics/input_rc.h>
 
 
@@ -156,7 +155,7 @@ void ServoControl::run()
 
         // Running the loop synchronized to the vehicle_attitude topic publication
         int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
-				int input_rc_sub = orb_subscribe(ORB_ID(actuator_controls_rc));
+				int input_rc_sub = orb_subscribe(ORB_ID(input_rc));
 
         // Operation needed to publish information on actuator_controls_3 topic
         struct actuator_controls_s out;
@@ -245,11 +244,10 @@ void ServoControl::run()
 
 		} else if ((fds[1].revents & POLLIN)) {
 
-			struct actuator_controls_rc_s input_rc;
-			orb_copy(ORB_ID(actuator_controls_rc), input_rc_sub, &input_rc);
+			struct input_rc_s input_rc;
+			orb_copy(ORB_ID(input_rc), input_rc_sub, &input_rc);
 
-			radio_input = (double)input_rc.control[5];
-			//radio_input = (double)(input_rc.values[6]-1500)/500;
+			radio_input = (double)(input_rc.values[6]-1500)/500;
 			//printf("Radio input: %f\n",radio_input);
 			//printf("Topic value: %d\n",input_rc.values[6]);
 

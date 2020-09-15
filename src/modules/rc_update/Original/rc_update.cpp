@@ -547,7 +547,7 @@ RCUpdate::Run()
 			_manual_control_pub.publish(manual);
 
 			/* copy from mapped manual control to control group 3 */
-			actuator_controls_rc_s actuator_group_3;
+			actuator_controls_s actuator_group_3{};
 
 			actuator_group_3.timestamp = rc_input.timestamp_last_signal;
 
@@ -636,3 +636,4 @@ extern "C" __EXPORT int rc_update_main(int argc, char *argv[])
 {
 	return RCUpdate::RCUpdate::main(argc, argv);
 }
+

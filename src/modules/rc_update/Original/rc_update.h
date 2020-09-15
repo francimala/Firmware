@@ -157,7 +157,7 @@ private:
 	uORB::Subscription	_rc_parameter_map_sub{ORB_ID(rc_parameter_map)};	/**< rc parameter map subscription */
 
 	uORB::Publication<rc_channels_s>	_rc_pub{ORB_ID(rc_channels)};				/**< raw r/c control topic */
-	uORB::Publication<actuator_controls_rc_s>	_actuator_group_3_pub{ORB_ID(actuator_controls_rc)};	/**< manual control as actuator topic */
+	uORB::Publication<actuator_controls_s>	_actuator_group_3_pub{ORB_ID(actuator_controls_3)};	/**< manual control as actuator topic */
 
 	uORB::PublicationMulti<manual_control_setpoint_s>	_manual_control_pub{ORB_ID(manual_control_setpoint), ORB_PRIO_HIGH};	/**< manual control signal topic */
 

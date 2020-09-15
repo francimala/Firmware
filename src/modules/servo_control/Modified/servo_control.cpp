@@ -42,8 +42,8 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/actuator_controls.h>
-#include <uORB/topics/actuator_controls_rc.h>
 #include <uORB/topics/input_rc.h>
+#include <uORB/topics/camera_stabilization_input.h>
 
 
 int ServoControl::print_status()
@@ -93,7 +93,7 @@ int ServoControl::task_spawn(int argc, char *argv[])
 ServoControl *ServoControl::instantiate(int argc, char *argv[])
 {
 
-        int example_param = 0;
+  int example_param = 0;
 	bool example_flag = false;
 	bool error_flag = false;
 
@@ -156,12 +156,12 @@ void ServoControl::run()
 
         // Running the loop synchronized to the vehicle_attitude topic publication
         int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
-				int input_rc_sub = orb_subscribe(ORB_ID(actuator_controls_rc));
+				int input_rc_sub = orb_subscribe(ORB_ID(input_rc));
 
-        // Operation needed to publish information on actuator_controls_3 topic
-        struct actuator_controls_s out;
+        // Operation needed to publish information on camera_stabilization_input topic
+        struct camera_stabilization_input_s out;
         memset(&out, 0, sizeof(out));
-        orb_advert_t out_pub = orb_advertise(ORB_ID(actuator_controls_3), &out);
+        orb_advert_t out_pub = orb_advertise(ORB_ID(camera_stabilization_input), &out);
 
         // Here we initialize the polling routine; if we need more subscriptions
         // it is enough to add components to the array fds[] and initialize its components
@@ -211,9 +211,9 @@ void ServoControl::run()
 
 													  count2++;
 
-                            out.control[5] = -ea1.pitch*180/3.1416/50 + keyboard_input + radio_input;
+                            out.camera_stabilization_input = -ea1.pitch*180/3.1416/50 + keyboard_input;// + radio_input;
 														//out.control[6] = -ea1.pitch*180/3.1416/50 + keyboard_input; // added
-                            orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
+                            orb_publish(ORB_ID(camera_stabilization_input), out_pub, &out);
 
 														if(count2 > 50) {
 															//PX4_INFO("Radio input: %f", radio_input);
@@ -245,11 +245,10 @@ void ServoControl::run()
 
 		} else if ((fds[1].revents & POLLIN)) {
 
-			struct actuator_controls_rc_s input_rc;
-			orb_copy(ORB_ID(actuator_controls_rc), input_rc_sub, &input_rc);
+			struct input_rc_s input_rc;
+			orb_copy(ORB_ID(input_rc), input_rc_sub, &input_rc);
 
-			radio_input = (double)input_rc.control[5];
-			//radio_input = (double)(input_rc.values[6]-1500)/500;
+			radio_input = (double)(input_rc.values[6]-1500)/500;
 			//printf("Radio input: %f\n",radio_input);
 			//printf("Topic value: %d\n",input_rc.values[6]);
 
