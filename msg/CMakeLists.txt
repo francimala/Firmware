@@ -44,7 +44,6 @@ set(msg_files
 	airspeed_validated.msg
 	battery_status.msg
 	camera_capture.msg
-	camera_stabilization_input.msg
 	camera_trigger.msg
 	cellular_status.msg
 	collision_constraints.msg

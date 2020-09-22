@@ -560,7 +560,8 @@ RCUpdate::Run()
 			actuator_group_3.control[6] = manual.aux2;
 			actuator_group_3.control[7] = manual.aux3;
 
-			/* publish actuator_controls_3 topic */
+			/* publish actuator_controls_rc topic, a new topic necessary to handled
+			both the stabilization and rc commands */
 			_actuator_group_3_pub.publish(actuator_group_3);
 
 			/* Update parameters from RC Channels (tuning with RC) if activated */

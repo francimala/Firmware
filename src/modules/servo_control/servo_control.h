@@ -49,7 +49,7 @@ class ServoControl : public ModuleBase<ServoControl>, public ModuleParams
 {
 public:
 	double keyboard_input;
-	double radio_input = 0;
+	double radio_input[8] = {0};
 
 	ServoControl(int example_param, bool example_flag);
 

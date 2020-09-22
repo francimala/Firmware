@@ -60,7 +60,6 @@
 #include <uORB/topics/rc_channels.h>
 #include <uORB/topics/rc_parameter_map.h>
 #include <uORB/topics/parameter_update.h>
-#include <uORB/topics/camera_stabilization_input.h>
 
 namespace RCUpdate
 {
