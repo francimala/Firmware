@@ -504,7 +504,7 @@
             }
 
             dist.anchor_num = (int)anchor_number;
-
+            dist.timestamp = hrt_absolute_time();
             orb_publish(ORB_ID(dwm1001), dist_pub_fd, &dist);
             //printf("%f %f %f %f\n",distances[0],distances[1],distances[2],distances[3]);
           }
