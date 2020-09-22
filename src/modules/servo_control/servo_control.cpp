@@ -72,7 +72,7 @@ int ServoControl::custom_command(int argc, char *argv[])
   return print_usage("unknown command");
 }
 
-
+/* Creating a task named servo_control */
 int ServoControl::task_spawn(int argc, char *argv[])
 {
   _task_id = px4_task_spawn_cmd("servo_control",
@@ -105,7 +105,7 @@ ServoControl *ServoControl::instantiate(int argc, char *argv[])
 		switch (ch) {
 		case 'p':
 			example_param = (int)strtol(myoptarg, nullptr, 10);
-      PX4_INFO("Something happened, %d", example_param);
+      PX4_INFO("You have inserted this parameter as stabilization angle: %d", example_param);
 			break;
 
 		case 'f':
@@ -136,6 +136,7 @@ ServoControl *ServoControl::instantiate(int argc, char *argv[])
   return instance;
 }
 
+/* Creating the keyboard input variable based on what user introduced using p flag */
 ServoControl::ServoControl(int example_param, bool example_flag)
         : ModuleParams(nullptr)
 {
@@ -144,6 +145,7 @@ ServoControl::ServoControl(int example_param, bool example_flag)
 	PX4_INFO("Input: %f", keyboard_input);
 }
 
+// This is the actual function running
 void ServoControl::run()
 {
   // Creating an object of the class QuaternionEuler and a structure with type EulerAngles
@@ -152,7 +154,7 @@ void ServoControl::run()
   int count = 0;
 	int count2 = 0;
 
-  // Running the loop synchronized to the vehicle_attitude topic publication
+  // Running the loop synchronized to the vehicle_attitude and actuator_controls_rc topic publication
   int vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 	int input_rc_sub = orb_subscribe(ORB_ID(actuator_controls_rc));
 
@@ -223,17 +225,12 @@ void ServoControl::run()
 
         orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
 
+				// This counter is used just for debugging purposes
 				if(count2 > 50) {
 					//PX4_INFO("Radio input: %f", radio_input);
 					//PX4_INFO("Keyboard input: %f", radio_input);
 					//PX4_INFO("Pitch contribution: %f", -ea1.pitch*180/3.1416/50);
 					count2 = 0;
-				}
-
-				if (count >= 500) {
-					PX4_INFO("We are in the cycle, %f", ServoControl::keyboard_input);
-	        PX4_INFO("Attitude --> Roll: %f, Pitch: %f, Yaw: %f", ea1.roll*180/3.1416, ea1.pitch*180/3.1416, ea1.yaw*180/3.1416);
-	        PX4_INFO("Control --> Roll: %f, Pitch: %f, Yaw: %f",ea1.roll*180/3.1416/60, ea1.pitch*180/3.1416/180, ea1.yaw*180/3.1416);
 				}
 
 				count = 0;
@@ -315,6 +312,8 @@ $ module start -f -p 42
 	return 0;
 }
 
+// Function converting quaternion to euler angles.
+// I had a problem with copysign, so I wrote manually the function.
 QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
     QuaternionEuler::EulerAngles angles;
 

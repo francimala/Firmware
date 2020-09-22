@@ -46,6 +46,7 @@
  static bool dwm1001_thread_running = false;            /**< dwm1001 status flag */
  static int dwm1001_task;                               /**< Handle of dwm1001 task / thread */
 
+// Function used to set the communication parameters
  int DWM1001::set_uart_baudrate(const int _fd)
  {
   // baudrate 115200, 8 bits, no parity, 1 stop bit
@@ -101,6 +102,7 @@
   return true;
 }
 
+// Open the communication
  int DWM1001::uart_init(char const *uart_name)
  {
      int serial_fd = open(uart_name, O_RDWR | O_NOCTTY | O_SYNC);
@@ -113,6 +115,7 @@
      return serial_fd;
  }
 
+// Program the module with lec
  int DWM1001::dwm1001_programming(const int _fd)
  {
 
