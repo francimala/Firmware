@@ -1,16 +1,11 @@
 ## dwm1001 description
 ### Components
-dwm1001.h is the header for the dwm1001 module.
-
-mdule.yaml is used for some configuration parameters.
-
-dwm1001.cpp is the actual driver.
-
-CMakeLists.txt must be compliant with the above mentioned components. If you have doubts see the official developer guide in section "Writing your first application".
-
-Old_queue folder contains the sketch of the driver implemented as work_queue instead of stand alone task. However, it is not working, but I leave it as it may be helpful for future development.
-
-Old_working folder is a backup.
+- dwm1001.h is the header for the dwm1001 module.
+- mdule.yaml is used for some configuration parameters.
+- dwm1001.cpp is the actual driver.
+- CMakeLists.txt must be compliant with the above mentioned components. If you have doubts see the official developer guide in section "Writing your first application".
+- Old_queue folder contains the sketch of the driver implemented as work_queue instead of stand alone task. However, it is not working, but I leave it as it may be helpful for future development.
+- Old_working folder is a backup.
 
 ### What is its goal
 This driver should initialize the communication with the DWM1001-dev module, program it with command lec, parse the read information and publish them in a clear way in a new topic named dwm1001.

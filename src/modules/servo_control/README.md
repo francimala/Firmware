@@ -1,12 +1,11 @@
 ## servo_control description
 ### Components
-quaternion_euler.h is the header for the function implementing the conversion from quaternion to euler within servo_control.
-
-servo_control.h is the header for the servo_control module.
-
-servo_control.cpp is the actual module implementing stabilization functionalities.
-
-CMakeLists.txt must be compliant with the above mentioned components. If you have doubts see the official developer guide in section "Writing your first application".
+- quaternion_euler.h is the header for the function implementing the conversion from quaternion to euler within servo_control.
+- servo_control.h is the header for the servo_control module.
+- servo_control.cpp is the actual module implementing stabilization functionalities.
+- CMakeLists.txt must be compliant with the above mentioned components. If you have doubts see the official developer guide in section "Writing your first application".
+- Testing is a folder with modules under testing.
+- Original is a backup folder.
 
 ### What is its goal
 This module is used to stabilize and control the servomotor position so that the camera pitch angle can be both stabilized and set using the RC. 
