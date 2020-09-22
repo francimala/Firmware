@@ -1,0 +1,1 @@
+This is a folder that will not be built using command make px4_fmu-v4_default, it only contains cpp files used for backup purposes. If you want to actually use this cpp file you need to substitute it to the servo_control directory.
