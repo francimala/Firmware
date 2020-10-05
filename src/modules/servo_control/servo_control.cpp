@@ -46,6 +46,7 @@
 #include <uORB/topics/input_rc.h>
 
 
+// This function has not been modified
 int ServoControl::print_status()
 {
 	PX4_INFO("Running");
@@ -54,6 +55,7 @@ int ServoControl::print_status()
 	return 0;
 }
 
+// This function has not been modified
 int ServoControl::custom_command(int argc, char *argv[])
 {
   /*
@@ -72,7 +74,8 @@ int ServoControl::custom_command(int argc, char *argv[])
   return print_usage("unknown command");
 }
 
-/* Creating a task named servo_control */
+/* Creating a task named servo_control.
+   Here I only increased the stack dimension */
 int ServoControl::task_spawn(int argc, char *argv[])
 {
   _task_id = px4_task_spawn_cmd("servo_control",
@@ -90,6 +93,9 @@ int ServoControl::task_spawn(int argc, char *argv[])
 	return 0;
 }
 
+/* Here we are specifying the flag (p) to be used for setting the zero-offset
+   stabilization angle from keyboard when starting the module.
+   The function is basically untouched, I only modified the PX4_INFO */
 ServoControl *ServoControl::instantiate(int argc, char *argv[])
 {
   int example_param = 0;
@@ -141,7 +147,7 @@ ServoControl::ServoControl(int example_param, bool example_flag)
         : ModuleParams(nullptr)
 {
 	keyboard_input = (double)example_param/50;
-	//keyboard_input = 0;
+	//keyboard_input = 10; // used for testing
 	PX4_INFO("Input: %f", keyboard_input);
 }
 
@@ -283,6 +289,7 @@ void ServoControl::parameters_update(bool force)
 	}
 }
 
+// This function is used for debugging on mavlink console
 int ServoControl::print_usage(const char *reason)
 {
 	if (reason) {
@@ -346,6 +353,7 @@ QuaternionEuler::EulerAngles QuaternionEuler::QuaternionToEuler(Quaternion q) {
     return angles;
 }
 
+// Not modified
 int servo_control_main(int argc, char *argv[])
 {
   return ServoControl::main(argc, argv);
