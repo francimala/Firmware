@@ -78,7 +78,7 @@ int ServoControl::task_spawn(int argc, char *argv[])
   _task_id = px4_task_spawn_cmd("servo_control",
 		SCHED_DEFAULT,
 		SCHED_PRIORITY_DEFAULT,
-		1024,
+		1500, // 1024 original
 		(px4_main_t)&run_trampoline,
 		(char *const *)argv);
 
@@ -208,7 +208,7 @@ void ServoControl::run()
       ea1 = etq.QuaternionToEuler(q1); // radiants
 
       // Now we wait for N cycles before making the comparison
-      if (count >= 10) {
+      if (count >= 2) {
 				count2++;
 
 				// radio_input[5] contains the value coming from the RC for the AUX1
@@ -222,6 +222,8 @@ void ServoControl::run()
 				out.control[4] = radio_input[4];
 				out.control[6] = radio_input[6];
 				out.control[7] = radio_input[7];
+
+				out.timestamp = hrt_absolute_time();
 
         orb_publish(ORB_ID(actuator_controls_3), out_pub, &out);
 
