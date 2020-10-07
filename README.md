@@ -17,7 +17,25 @@ The serial driver is named **dwm1001**. Its working principle can be broken down
 
 The final result is a driver able to read information coming from the sensor and publishing them on a new topic.
 
-## Where can you find the added files?
+## How to test this firmware
+
+### Suggested procedure
+1. Fork this repository into a directory that you know using the following command:
+
+**git clone https://github.com/francimala/Firmware.git --recursive**
+
+2. Open a new terminal and go into the directory where you downloaded the code.
+3. Plug Pixracer flight controller and build the code using:
+
+**make px4_fmu-v4_default upload**
+
+4. The stabilization module *servo_control* will start automatically, whereas the driver should be initialized manually.
+5. Before initializing the driver it is recommended to start the logger so that dwm1001 messages will be all saved into the microSD card. Initialize the logger using **logger on** into the MAVLink console. If you forget it, don't worry, the logger will automatically start when the drone is armed, nevertheless you will lose some data.
+6. Initialize the driver using **dwm1001 start** in MAVLink console. The driver is correctly started if you read the message "Got the beginning" on the serial port.
+7. When the flight mission is over, you can read the log file accessing the microSD log directory. For the conversion use pyulog (https://github.com/PX4/pyulog). Copy the
+correct .ulg file in a directory you know and run the command ulog2csv ulog file.ulg in a new terminal. This procedure will create a csv human-friently document in that folder containing all the logs.
+
+### Where can you find the added files?
 - Stabilization module can be found in directory: **Firmware/src/modules/servo_control**.
 - DWM1001 driver can be found in directory: **Firmware/src/drivers/distance_sensor/dwm1001**
 - **rc_update** has been slightly modified, it publishes on a different topic (actuator_control_rc instead of actuator_control). It can be found in directory: **Firmware/src/modules/rc_update**
