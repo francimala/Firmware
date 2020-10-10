@@ -48,4 +48,8 @@ It is highly suggested to fork this firmware and to build it as is because I had
 - PX4 User guide: https://docs.px4.io/master/en/
 - PX4 Doxygen: https://px4.github.io/Firmware-Doxygen/dc/d61/md_src_drivers_uavcan_uavcan_drivers_stm32__r_e_a_d_m_e.html
 - Connection between Arduino and DWM1001-dev module: https://github.com/francimala/Arduino-MEGA-to-DWM1001
-- Some YouTube videos I made to explain some concepts: https://www.youtube.com/playlist?list=PLXL_6wK-bGzdde2lsofkw1bZ2mec8i9ra
+- Servo stabilization module explanation (italian): https://youtu.be/IgG5OOK1Tyw
+- Driver explanation (italian): https://youtu.be/0GsJtd7PwT8
+- How to manually integrate these customization (italian): https://youtu.be/V-wbH9gnAvw
+- How mixing works: https://www.youtube.com/watch?v=N97bxWtoPJ8&ab_channel=FrancescoMalacarne
+- UWB testing: https://www.youtube.com/watch?v=FuytZULFfAo&ab_channel=FrancescoMalacarne
